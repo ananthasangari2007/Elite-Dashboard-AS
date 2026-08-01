@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Pending Requests | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Student Monitoring</p>
+            <h1>Pending Join Requests</h1>
+        </div>
+        <div class="header-actions">
+            <a class="ghost-btn" href="{{ url_for('students.index') }}">All Students</a>
+            <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+        </div>
+    </header>
+
+    <section class="work-panel">
+        <div class="section-title">
+            <div>
+                <p class="eyebrow">Awaiting Approval</p>
+                <h2>Pending student requests</h2>
+            </div>
+        </div>
+        {% if students %}
+            <div class="data-table">
+                <div class="table-row student-table-row table-head">
+                    <span>Name</span><span>Email</span><span>Created</span><span>Status</span><span>Action</span>
+                </div>
+                {% for student in students %}
+                    <div class="table-row student-table-row">
+                        <span>
+                            <a href="{{ url_for('students.detail', student_id=student.id) }}">{{ student.name }}</a>
+                        </span>
+                        <span>{{ student.email }}</span>
+                        <span>{{ student.created_at.strftime('%d %b %Y') }}</span>
+                        <span><span class="status-pill status-warning">{{ student.approval_status|title }}</span></span>
+                        <span class="pending-request-actions">
+                            <form method="post" action="{{ url_for('students.update_approval', student_id=student.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="approval_status" value="approved">
+                                <button class="primary-btn" type="submit">Approve</button>
+                            </form>
+                            <form method="post" action="{{ url_for('students.update_approval', student_id=student.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="approval_status" value="rejected">
+                                <button class="danger-btn" type="submit">Reject</button>
+                            </form>
+                            <a class="ghost-btn" href="{{ url_for('students.detail', student_id=student.id) }}">View Details</a>
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <strong>No Pending Requests</strong>
+                <span>New student registrations will appear here for approval.</span>
+            </div>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

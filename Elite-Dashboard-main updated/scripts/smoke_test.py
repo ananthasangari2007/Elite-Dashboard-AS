@@ -1,7 +1,10 @@
+import io
 import re
 import sys
 import tempfile
 from pathlib import Path
+
+from werkzeug.datastructures import FileStorage
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -101,6 +104,7 @@ def main():
 
     response = client.get(f"/submissions/task/{task_id}/submit")
     token = csrf_token(response.get_data(as_text=True))
+    proof_file = FileStorage(stream=io.BytesIO(b"fake proof content"), filename="proof.png", content_type="image/png")
     response = client.post(
         f"/submissions/task/{task_id}/submit",
         data={
@@ -108,7 +112,9 @@ def main():
             "description": "Completed proof",
             "github_link": "https://github.com/example/repo",
             "drive_link": "",
+            "proof_files": proof_file,
         },
+        content_type="multipart/form-data",
         follow_redirects=True,
     )
     assert response.status_code == 200
@@ -150,7 +156,7 @@ def main():
     token = csrf_token(response.get_data(as_text=True))
     response = client.post(
         f"/students/{student_id}/bonus",
-        data={"csrf_token": token, "reason": "Daily Top Performer", "points": "20"},
+        data={"csrf_token": token, "rule_code": "BONUS001", "reason_detail": "Daily top performer"},
         follow_redirects=True,
     )
     assert response.status_code == 200
@@ -159,7 +165,7 @@ def main():
     token = csrf_token(response.get_data(as_text=True))
     response = client.post(
         f"/students/{student_id}/penalty",
-        data={"csrf_token": token, "reason": "Daily task not updated", "points": "5"},
+        data={"csrf_token": token, "rule_code": "PENALTY001", "reason_detail": "Missed daily update"},
         follow_redirects=True,
     )
     assert response.status_code == 200

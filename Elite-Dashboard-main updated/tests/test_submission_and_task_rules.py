@@ -1,7 +1,10 @@
 import os
+import tempfile
 from datetime import datetime, timedelta
 
-os.environ.setdefault("DATABASE_URL", "sqlite:////tmp/elite_dashboard_test.db")
+from sqlalchemy import func
+
+os.environ.setdefault("DATABASE_URL", f"sqlite:///{tempfile.gettempdir()}/elite_dashboard_test.db")
 
 from app import create_app, db
 from app.models import Submission, Task, User
@@ -43,17 +46,21 @@ def setup_app():
         db.session.add_all([task, task2])
         db.session.commit()
 
-        return app, student, task, task2
+        student_id = student.id
+        task_id = task.id
+        task2_id = task2.id
+
+    return app, student_id, task_id, task2_id
 
 
 def test_rejected_submission_allows_same_day_resubmission():
-    app, student, task, _ = setup_app()
+    app, student_id, task_id, _ = setup_app()
     with app.app_context():
         today = datetime.utcnow().date()
         db.session.add(
             Submission(
-                student_id=student.id,
-                task_id=task.id,
+                student_id=student_id,
+                task_id=task_id,
                 submission_date=today,
                 status="rejected",
                 description="retry",
@@ -62,20 +69,20 @@ def test_rejected_submission_allows_same_day_resubmission():
         )
         db.session.commit()
 
-        allowed, message = can_submit_task_on_date(student.id, task.id, today)
+        allowed, message = can_submit_task_on_date(student_id, task_id, today)
 
         assert allowed is True
         assert message is None
 
 
 def test_approved_submission_blocks_duplicate_same_day():
-    app, student, task, _ = setup_app()
+    app, student_id, task_id, _ = setup_app()
     with app.app_context():
         today = datetime.utcnow().date()
         db.session.add(
             Submission(
-                student_id=student.id,
-                task_id=task.id,
+                student_id=student_id,
+                task_id=task_id,
                 submission_date=today,
                 status="approved",
                 description="already done",
@@ -85,7 +92,7 @@ def test_approved_submission_blocks_duplicate_same_day():
         )
         db.session.commit()
 
-        allowed, message = can_submit_task_on_date(student.id, task.id, today)
+        allowed, message = can_submit_task_on_date(student_id, task_id, today)
 
         assert allowed is False
         assert "already approved" in message.lower()

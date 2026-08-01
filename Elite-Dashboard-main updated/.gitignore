@@ -6,11 +6,12 @@ __pycache__/
 .Python
 .env
 .env.*
+!.env.example
 instance/*.sqlite3
 instance/*.db
 app/static/uploads/*
 !app/static/uploads/.gitkeep
-uploads/
+/uploads/
 .pytest_cache/
 .mypy_cache/
 .coverage
