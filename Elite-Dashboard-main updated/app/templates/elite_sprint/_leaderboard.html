@@ -6,6 +6,12 @@
                 <strong>{{ row.student_name }}</strong>
                 <small>{{ row.department }}</small>
                 <b>{{ row.total_tasks }} tasks</b>
+                {% if row.golden_star %}
+                    <span class="badge badge-gold">⭐ Golden Star</span>
+                {% endif %}
+                {% if row.penalty %}
+                    <span class="badge badge-red">🔴 Penalty Applied</span>
+                {% endif %}
             </div>
         {% endfor %}
     </div>
@@ -18,6 +24,12 @@
                     <small>{{ row.department }} - {{ row.badge }}</small>
                 </div>
                 <b>{{ row.total_tasks }}</b>
+                {% if row.golden_star %}
+                    <span class="badge badge-gold">⭐ Golden Star</span>
+                {% endif %}
+                {% if row.penalty %}
+                    <span class="badge badge-red">🔴 Penalty Applied</span>
+                {% endif %}
             </div>
         {% endfor %}
     </div>

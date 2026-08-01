@@ -80,20 +80,6 @@
                             },
                         });
                     }
-
-                    if (payload.role === "student") {
-                        const weekly = document.getElementById("studentWeeklyPointsChart");
-                        if (weekly && payload.weekly_points) new Chart(weekly, { type: "line", data: { labels: payload.weekly_points.labels, datasets: [{ label: "Points", data: payload.weekly_points.values, borderColor: "#22c55e", backgroundColor: "rgba(34,197,94,0.18)", fill: true, tension: 0.25 }] }, options: { responsive: true, scales: { y: { beginAtZero: true } } } });
-
-                        const progress = document.getElementById("studentTaskProgressChart");
-                        if (progress && payload.task_progress) new Chart(progress, { type: "doughnut", data: { labels: payload.task_progress.labels, datasets: [{ data: payload.task_progress.values, backgroundColor: ["#22c55e", "#d1d5db"] }] }, options: { responsive: true } });
-
-                        const streak = document.getElementById("studentDailySubmissionChart");
-                        if (streak && payload.daily_streak) new Chart(streak, { type: "bar", data: { labels: payload.daily_streak.labels, datasets: [{ label: "Submissions", data: payload.daily_streak.values, backgroundColor: palette }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
-
-                        const sprint = document.getElementById("studentSprintParticipationChart");
-                        if (sprint && payload.sprint_participation) new Chart(sprint, { type: "radar", data: { labels: payload.sprint_participation.labels, datasets: [{ label: "Sprint counts", data: payload.sprint_participation.values, borderColor: "#8b5cf6", backgroundColor: "rgba(139,92,246,0.2)" }] }, options: { responsive: true } });
-                    }
                 })
                 .catch(() => {});
         });

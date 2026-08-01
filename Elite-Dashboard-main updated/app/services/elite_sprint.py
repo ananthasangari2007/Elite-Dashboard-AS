@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from sqlalchemy import func
 
 from app import db
-from app.models import EliteSprintBid, EliteSprintSession, Task, User
+from app.models import EliteSprintBid, EliteSprintSession, PointTransaction, Submission, Task, User
 
 
 APP_TIMEZONE = os.getenv("ELITE_TIMEZONE", "Asia/Kolkata")
@@ -49,6 +49,15 @@ def close_expired_sprints():
     for session in expired:
         session.status = "closed"
     db.session.commit()
+
+    for session in expired:
+        if not session.is_verified:
+            try:
+                verify_sprint(session)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
     return len(expired)
 
 
@@ -96,6 +105,7 @@ def sprint_leaderboard(session_id=None, limit=None):
     leaderboard = []
     for index, row in enumerate(rows.all(), start=1):
         total = int(row.total_tasks or 0)
+        bid = row.EliteSprintBid
         leaderboard.append(
             {
                 "rank": index,
@@ -103,7 +113,9 @@ def sprint_leaderboard(session_id=None, limit=None):
                 "department": row.department or "Not set",
                 "total_tasks": total,
                 "badge": participation_badge(index, total),
-                "bid": row.EliteSprintBid,
+                "bid": bid,
+                "golden_star": bid.has_golden_star if bid else False,
+                "penalty": bid.student.has_active_sprint_penalty if bid and bid.student else False,
             }
         )
     return leaderboard
@@ -161,3 +173,61 @@ def active_task_ids_by_type():
         if task_type in grouped:
             grouped[task_type].update(values)
     return grouped, all_ids
+
+
+def verify_sprint(session):
+    if not session or session.is_verified:
+        raise ValueError("Sprint session is not active or already verified.")
+
+    bids = EliteSprintBid.query.filter_by(session_id=session.id).all()
+    if not bids:
+        session.is_verified = True
+        return {"golden_star": None, "penalty_count": 0}
+
+    golden_star_students = []
+    penalty_count = 0
+
+    for bid in bids:
+        student = bid.student
+        sprint_date = session.sprint_date
+        bidded_ids = set()
+        for task_id in (bid.daily_tasks or []):
+            bidded_ids.add(str(task_id).upper())
+        for task_id in (bid.weekly_tasks or []):
+            bidded_ids.add(str(task_id).upper())
+        for task_id in (bid.monthly_tasks or []):
+            bidded_ids.add(str(task_id).upper())
+
+        approved_ids = set()
+        submissions = Submission.query.filter_by(student_id=student.id, status="approved").all()
+        for sub in submissions:
+            if sub.submission_date == sprint_date or (sub.submitted_at and sub.submitted_at.date() == sprint_date):
+                task = Task.query.get(sub.task_id)
+                if task:
+                    task_id_str = str(task.id)
+                    if task.task_code:
+                        task_id_str = task.task_code.strip().upper()
+                    approved_ids.add(task_id_str)
+
+        missing_ids = bidded_ids - approved_ids
+        if not missing_ids and bidded_ids:
+            bid.has_golden_star = True
+            golden_star_students.append(student.name)
+        else:
+            for task_id_str in missing_ids:
+                task = Task.query.filter(
+                    (Task.id == task_id_str) | (Task.task_code == task_id_str)
+                ).first()
+                if task:
+                    penalty = PointTransaction.penalty(
+                        student_id=student.id,
+                        points=task.reward_points,
+                        reason=f"Sprint penalty: missed bidded task {task.task_code or task.id}",
+                        approved_by=None,
+                    )
+                    db.session.add(penalty)
+                    student.has_active_sprint_penalty = True
+                    penalty_count += 1
+
+    session.is_verified = True
+    return {"golden_star": golden_star_students, "penalty_count": penalty_count}

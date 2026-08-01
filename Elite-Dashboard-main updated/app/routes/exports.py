@@ -1,11 +1,15 @@
 from io import BytesIO
+from datetime import datetime
+from pathlib import Path
 
-from flask import Blueprint, send_file
+from flask import Blueprint, flash, redirect, send_file, url_for
+from openpyxl import load_workbook
 from sqlalchemy import func
 
 from app import db
 from app.models import PointTransaction, Submission, Task, User
 from app.services.points import leaderboard
+from app.services.reports import export_daily_report
 from app.utils.auth import role_required
 
 
@@ -165,4 +169,20 @@ def excel():
         as_attachment=True,
         download_name="elite_dashboard_report.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@exports_bp.route("/daily-report", methods=["POST"])
+@role_required("admin")
+def daily_report():
+    sprint_date = datetime.utcnow().date()
+    file_path = Path(export_daily_report(sprint_date))
+    if not file_path.exists():
+        flash(f"Daily report exported to {file_path}.", "success")
+        return redirect(url_for("dashboard.home"))
+    return send_file(
+        file_path,
+        as_attachment=True,
+        download_name=file_path.name,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )

@@ -48,6 +48,10 @@
                     <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Sprint</a>
                     <a class="ghost-btn" href="{{ url_for('penalties.create') }}">Penalty</a>
                     <a class="ghost-btn" href="{{ url_for('exports.excel') }}">Export</a>
+                    <form method="post" action="{{ url_for('exports.daily_report') }}" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="ghost-btn" type="submit">Export Daily Report</button>
+                    </form>
                 {% else %}
                     <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">Sprint</a>
                     <a class="ghost-btn" href="{{ url_for('profile.edit') }}">Profile</a>
@@ -73,6 +77,32 @@
                 <span>Submit your sprint plan before the deadline.</span>
                 <b data-countdown data-reload-on-expire="true" data-end-time="{{ active_sprint.end_time.isoformat() }}">--:--:--</b>
                 <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">Open Sprint</a>
+            </section>
+        {% elif current_user.role == "student" and latest_sprint %}
+            <section class="sprint-alert sprint-closed">
+                <strong>🏁 Elite Sprint Bidding is Closed</strong>
+                <span>The latest sprint on {{ latest_sprint.sprint_date.strftime("%d %b %Y") }} is {{ "verified" if latest_sprint.is_verified else "awaiting verification" }}.</span>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">View Details</a>
+            </section>
+        {% endif %}
+        {% if current_user.role == "admin" and active_sprint and not active_sprint.is_verified %}
+            <section class="sprint-alert glow-badge">
+                <strong>⚡ Elite Sprint Bidding is OPEN now!</strong>
+                <span>Active sprint session. Use the Sprint Verification Bot after the deadline.</span>
+                <b data-countdown data-reload-on-expire="true" data-end-time="{{ active_sprint.end_time.isoformat() }}">--:--:--</b>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Manage Sprint</a>
+            </section>
+        {% elif current_user.role == "admin" and latest_sprint and not latest_sprint.is_verified %}
+            <section class="sprint-alert sprint-pending">
+                <strong>⏳ Sprint Verification Pending</strong>
+                <span>The latest sprint on {{ latest_sprint.sprint_date.strftime("%d %b %Y") }} ended and is awaiting verification.</span>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Verify Now</a>
+            </section>
+        {% elif current_user.role == "admin" and latest_sprint and latest_sprint.is_verified %}
+            <section class="sprint-alert sprint-verified">
+                <strong>✅ Latest Sprint Verified</strong>
+                <span>The sprint on {{ latest_sprint.sprint_date.strftime("%d %b %Y") }} has been verified. Golden Stars and penalties are applied.</span>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">View Results</a>
             </section>
         {% endif %}
 
@@ -215,6 +245,12 @@
                                     <small>{{ student.department }} · {{ student.badge }}</small>
                                 </div>
                                 <b>{{ student.total_tasks }}</b>
+                                {% if student.golden_star %}
+                                    <span class="badge badge-gold">⭐</span>
+                                {% endif %}
+                                {% if student.penalty %}
+                                    <span class="badge badge-red">🔴</span>
+                                {% endif %}
                             </div>
                         {% endfor %}
                     {% else %}
@@ -316,33 +352,6 @@
                         <div><p class="eyebrow">Performance</p><h2>Task ID completion</h2></div>
                     </div>
                     <canvas id="adminTaskPerformanceChart"></canvas>
-                </article>
-            </section>
-        {% else %}
-            <section class="chart-grid">
-                <article class="work-panel">
-                    <div class="section-title">
-                        <div><p class="eyebrow">Progress</p><h2>Weekly points earned</h2></div>
-                    </div>
-                    <canvas id="studentWeeklyPointsChart"></canvas>
-                </article>
-                <article class="work-panel">
-                    <div class="section-title">
-                        <div><p class="eyebrow">Completion</p><h2>Task completion progress</h2></div>
-                    </div>
-                    <canvas id="studentTaskProgressChart"></canvas>
-                </article>
-                <article class="work-panel">
-                    <div class="section-title">
-                        <div><p class="eyebrow">Activity</p><h2>Daily submission streak</h2></div>
-                    </div>
-                    <canvas id="studentDailySubmissionChart"></canvas>
-                </article>
-                <article class="work-panel">
-                    <div class="section-title">
-                        <div><p class="eyebrow">Sprint</p><h2>Sprint participation</h2></div>
-                    </div>
-                    <canvas id="studentSprintParticipationChart"></canvas>
                 </article>
             </section>
         {% endif %}

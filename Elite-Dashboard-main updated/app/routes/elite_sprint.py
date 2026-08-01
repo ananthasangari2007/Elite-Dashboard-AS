@@ -19,6 +19,7 @@ from app.services.elite_sprint import (
     sprint_leaderboard,
     sprint_metrics,
     utc_datetime_to_local,
+    verify_sprint,
 )
 from app.utils.auth import role_required
 
@@ -94,6 +95,30 @@ def admin():
     )
 
 
+@elite_sprint_bp.route("/admin/verify", methods=["POST"])
+@role_required("admin")
+def verify_sprint_route():
+    session_id = request.form.get("session_id")
+    if not session_id:
+        flash("No sprint session selected.", "danger")
+        return redirect(url_for("elite_sprint.admin"))
+    session = EliteSprintSession.query.get_or_404(session_id)
+    if session.is_verified:
+        flash("Sprint already verified.", "info")
+        return redirect(url_for("elite_sprint.admin"))
+    try:
+        result = verify_sprint(session)
+        db.session.commit()
+        if result.get("golden_star"):
+            flash(f"Sprint verified. Golden Star awarded to {result['golden_star']}.", "success")
+        else:
+            flash(f"Sprint verified. Penalties applied to {result['penalty_count']} student(s).", "warning")
+    except Exception as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    return redirect(url_for("elite_sprint.admin"))
+
+
 @elite_sprint_bp.route("/admin/close/<int:session_id>", methods=["POST"])
 @role_required("admin")
 def close(session_id):
@@ -121,6 +146,9 @@ def student():
         if not active_session:
             flash("Elite Sprint Closed.", "warning")
             return redirect(url_for("elite_sprint.student"))
+        if bid and bid.is_locked:
+            flash("Your sprint bid is already locked and cannot be edited.", "danger")
+            return redirect(url_for("elite_sprint.student"))
         try:
             daily_tasks = parse_task_ids("daily")
             weekly_tasks = parse_task_ids("weekly")
@@ -142,9 +170,11 @@ def student():
             bid.daily_count = len(daily_tasks)
             bid.weekly_count = len(weekly_tasks)
             bid.monthly_count = len(monthly_tasks)
+            bid.is_locked = True
+            bid.locked_at = datetime.utcnow()
             bid.submitted_at = datetime.utcnow()
             db.session.commit()
-            flash("Your sprint bid has been saved.", "success")
+            flash("Your sprint bid has been saved and locked.", "success")
             return redirect(url_for("elite_sprint.student"))
         except ValueError as exc:
             db.session.rollback()

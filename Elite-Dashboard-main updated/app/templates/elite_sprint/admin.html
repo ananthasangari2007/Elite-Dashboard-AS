@@ -39,10 +39,14 @@
                     <p class="eyebrow">{{ "Active" if active_session else "Latest" }} Session</p>
                     <h2>{{ "Sprint countdown" if active_session else "Elite Sprint Closed" }}</h2>
                 </div>
-                {% if active_session %}
-                    <form method="post" action="{{ url_for('elite_sprint.close', session_id=active_session.id) }}">
+                {% if latest_session %}
+                    {% if latest_session.is_verified %}
+                        <span class="status-pill">Verified</span>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('elite_sprint.verify_sprint_route') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button class="danger-btn" type="submit">Close Sprint</button>
+                        <input type="hidden" name="session_id" value="{{ latest_session.id }}">
+                        <button class="primary-btn" type="submit" {% if latest_session.is_verified %}disabled{% endif %}>Sprint Verification Bot</button>
                     </form>
                 {% endif %}
             </div>
