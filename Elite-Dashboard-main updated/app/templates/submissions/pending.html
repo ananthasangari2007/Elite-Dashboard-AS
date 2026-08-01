@@ -30,7 +30,9 @@
                                         <div class="proof-actions">
                                             {% if submission.github_link %}<a class="ghost-btn" href="{{ submission.github_link }}" target="_blank" rel="noopener">Open GitHub Proof</a>{% endif %}
                                             {% if submission.drive_link %}<a class="ghost-btn" href="{{ submission.drive_link }}" target="_blank" rel="noopener">Open Drive Proof</a>{% endif %}
-                                            {% if submission.file_path %}<a class="ghost-btn" href="{{ url_for('static', filename=submission.file_path) }}" download>Download Uploaded File</a>{% endif %}
+                                            {% if submission.proof_url %}
+                                                <button type="button" class="ghost-btn proof-preview" data-proof-list="{{ submission.proof_url }}">Preview Proof</button>
+                                            {% endif %}
                                         </div>
                                     </div>
                                     <form method="post" action="{{ url_for('submissions.approve', submission_id=submission.id) }}" class="inline-form">

@@ -14,11 +14,42 @@ students_bp = Blueprint("students", __name__, url_prefix="/students")
 @role_required("admin")
 def index():
     students = User.query.filter_by(role="student").order_by(User.name.asc()).all()
+    pending_students = User.query.filter_by(role="student", approval_status="pending").order_by(User.created_at.desc()).all()
     overall = {row.student_id: int(row.overall_points or 0) for row in overall_points_query().all()}
     monthly = {row.student_id: int(row.monthly_points or 0) for row in monthly_points_query().all()}
     ranked = {row["name"]: row for row in leaderboard(limit=100000)}
     badges = {student.id: badge_for_points(overall.get(student.id, 0)) for student in students}
-    return render_template("students/index.html", students=students, overall=overall, monthly=monthly, ranked=ranked, badges=badges)
+    return render_template(
+        "students/index.html",
+        students=students,
+        pending_students=pending_students,
+        overall=overall,
+        monthly=monthly,
+        ranked=ranked,
+        badges=badges,
+    )
+
+
+@students_bp.route("/pending")
+@role_required("admin")
+def pending_requests():
+    students = User.query.filter_by(role="student", approval_status="pending").order_by(User.created_at.desc()).all()
+    return render_template("students/pending.html", students=students)
+
+
+@students_bp.route("/<int:student_id>/approval", methods=["POST"])
+@role_required("admin")
+def update_approval(student_id):
+    student = User.query.filter_by(id=student_id, role="student").first_or_404()
+    new_status = request.form.get("approval_status", "").strip().lower()
+    if new_status not in {"approved", "rejected"}:
+        flash("Choose a valid approval action.", "warning")
+        return redirect(url_for("students.index"))
+
+    student.approval_status = new_status
+    db.session.commit()
+    flash(f"Student request marked as {new_status}.", "success")
+    return redirect(url_for("students.index"))
 
 
 @students_bp.route("/<int:student_id>")

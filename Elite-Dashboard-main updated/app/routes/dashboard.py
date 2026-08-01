@@ -1,17 +1,144 @@
-from flask import Blueprint, render_template
-from datetime import datetime
+from datetime import datetime, timedelta
 
+from flask import Blueprint, jsonify, render_template
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app import db
-from app.models import PointTransaction, Submission, Task, User
+from app.models import EliteSprintBid, PointTransaction, Submission, Task, User
 from app.services.elite_sprint import get_active_session, latest_session as get_latest_sprint, sprint_leaderboard
 from app.services.points import leaderboard, monthly_points_query, overall_points_query, total_points_awarded
 from app.services.submissions import current_daily_streak, dashboard_submission_analytics, top_daily_streaks
 
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
+
+
+@dashboard_bp.route("/charts/data")
+@login_required
+def chart_data():
+    if current_user.role == "admin":
+        top_students = overall_points_query().order_by(db.desc("overall_points"), User.name.asc()).limit(8).all()
+        task_distribution = (
+            db.session.query(Task.task_type, func.count(Task.id).label("count"))
+            .filter(Task.status == "active")
+            .group_by(Task.task_type)
+            .all()
+        )
+        trend_rows = (
+            db.session.query(Submission.submission_date, func.count(Submission.id).label("count"))
+            .filter(Submission.status == "approved")
+            .group_by(Submission.submission_date)
+            .order_by(Submission.submission_date.asc())
+            .limit(7)
+            .all()
+        )
+        submission_status = (
+            db.session.query(Submission.status, func.count(Submission.id).label("count"))
+            .group_by(Submission.status)
+            .all()
+        )
+        task_performance = (
+            db.session.query(
+                Task.id.label("task_id"),
+                Task.task_code.label("task_code"),
+                func.coalesce(
+                    func.sum(db.case((Submission.status == "approved", 1), else_=0)),
+                    0,
+                ).label("approved_count"),
+            )
+            .outerjoin(Submission, Submission.task_id == Task.id)
+            .filter(Task.status == "active")
+            .group_by(Task.id, Task.task_code)
+            .order_by(Task.created_at.asc())
+            .all()
+        )
+        return jsonify(
+            {
+                "role": "admin",
+                "top_students": {
+                    "labels": [row.student_name for row in top_students],
+                    "values": [int(row.overall_points or 0) for row in top_students],
+                },
+                "task_distribution": {
+                    "labels": [row.task_type.title() for row in task_distribution],
+                    "values": [row.count for row in task_distribution],
+                },
+                "approval_trend": {
+                    "labels": [row.submission_date.strftime("%d %b") for row in trend_rows],
+                    "values": [row.count for row in trend_rows],
+                },
+                "submission_status": {
+                    "labels": [row.status.replace("_", " ").title() for row in submission_status],
+                    "values": [row.count for row in submission_status],
+                },
+                "task_performance": {
+                    "labels": [row.task_code or f"Task {row.task_id}" for row in task_performance],
+                    "values": [int(row.approved_count or 0) for row in task_performance],
+                },
+            }
+        )
+
+    last_7_days = []
+    for offset in range(6, -1, -1):
+        day = (datetime.utcnow().date() - timedelta(days=offset))
+        last_7_days.append(day)
+
+    weekly_points = (
+        db.session.query(func.date(PointTransaction.created_at).label("day"), func.coalesce(func.sum(PointTransaction.points), 0).label("total"))
+        .filter(PointTransaction.student_id == current_user.id, PointTransaction.created_at >= datetime.utcnow() - timedelta(days=6))
+        .group_by(func.date(PointTransaction.created_at))
+        .all()
+    )
+    points_by_day = {row.day.strftime("%Y-%m-%d"): int(row.total or 0) for row in weekly_points}
+    chart_days = [day.strftime("%d %b") for day in last_7_days]
+    point_values = [points_by_day.get(day.isoformat(), 0) for day in last_7_days]
+
+    total_active_tasks = Task.query.filter_by(status="active").count()
+    approved_count = Submission.query.filter_by(student_id=current_user.id, status="approved").count()
+    pending_count = Submission.query.filter_by(student_id=current_user.id, status="waiting_approval").count()
+    total_submissions = Submission.query.filter_by(student_id=current_user.id).count()
+
+    submission_streak = (
+        db.session.query(Submission.submission_date, func.count(Submission.id).label("count"))
+        .filter(Submission.student_id == current_user.id, Submission.submission_date >= last_7_days[0])
+        .group_by(Submission.submission_date)
+        .order_by(Submission.submission_date.asc())
+        .all()
+    )
+    streak_labels = [row.submission_date.strftime("%d %b") for row in submission_streak]
+    streak_values = [row.count for row in submission_streak]
+
+    sprint_bids = (
+        db.session.query(EliteSprintBid.session_id, func.coalesce(func.sum(EliteSprintBid.daily_count + EliteSprintBid.weekly_count + EliteSprintBid.monthly_count), 0).label("total"))
+        .filter(EliteSprintBid.student_id == current_user.id)
+        .group_by(EliteSprintBid.session_id)
+        .all()
+    )
+    sprint_labels = []
+    sprint_values = []
+    for session_id, total in sprint_bids:
+        sprint_record = EliteSprintBid.query.filter_by(id=session_id).first()
+        sprint_labels.append((sprint_record.session.sprint_date.strftime("%d %b") if sprint_record and sprint_record.session else f"Sprint {session_id}"))
+        sprint_values.append(int(total or 0))
+
+    return jsonify(
+        {
+            "role": "student",
+            "weekly_points": {"labels": chart_days, "values": point_values},
+            "task_progress": {
+                "labels": ["Completed", "Remaining"],
+                "values": [approved_count, max(total_active_tasks - approved_count, 0)],
+            },
+            "daily_streak": {"labels": streak_labels, "values": streak_values},
+            "sprint_participation": {"labels": sprint_labels, "values": sprint_values},
+            "summary": {
+                "approved": approved_count,
+                "pending": pending_count,
+                "total": total_submissions,
+            },
+        }
+    )
 
 
 @dashboard_bp.route("/")

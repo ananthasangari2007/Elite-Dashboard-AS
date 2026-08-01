@@ -114,6 +114,35 @@ document.querySelectorAll("[data-task-section]").forEach((section) => {
     renderInputs();
 });
 
+const proofModal = document.getElementById("proofModal");
+const proofModalBody = document.getElementById("proofModalBody");
+
+document.querySelectorAll(".proof-preview").forEach((button) => {
+    button.addEventListener("click", (event) => {
+        event.preventDefault();
+        const proofList = (button.dataset.proofList || "").split("|").filter(Boolean);
+        const modal = new bootstrap.Modal(proofModal);
+
+        if (!proofList.length) {
+            proofModalBody.innerHTML = "<p class='text-white'>No proof file available.</p>";
+            modal.show();
+            return;
+        }
+
+        const slides = proofList.map((url) => {
+            const normalized = url.trim();
+            const lower = normalized.toLowerCase();
+            if (lower.endsWith(".pdf")) {
+                return `<div class="proof-slide"><iframe src="${normalized}" title="Proof preview" allow="fullscreen"></iframe></div>`;
+            }
+            return `<div class="proof-slide"><img src="${normalized}" alt="Proof preview"></div>`;
+        }).join("");
+
+        proofModalBody.innerHTML = `<div class="proof-gallery">${slides}</div>`;
+        modal.show();
+    });
+});
+
 const sprintTrendChart = document.getElementById("sprintTrendChart");
 if (sprintTrendChart && window.Chart) {
     const labels = JSON.parse(sprintTrendChart.dataset.labels || "[]");

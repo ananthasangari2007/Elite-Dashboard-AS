@@ -383,6 +383,39 @@ p {
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
+.proof-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.7rem;
+}
+
+.proof-modal-body {
+    min-height: 420px;
+    display: grid;
+    place-items: center;
+    background: #0f172a;
+}
+
+.proof-modal-body img,
+.proof-modal-body iframe {
+    width: 100%;
+    max-height: 75vh;
+    border: 0;
+    border-radius: 12px;
+    background: white;
+}
+
+.proof-modal-body img {
+    object-fit: contain;
+}
+
+.proof-modal-content {
+    border: 0;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
 .form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -478,6 +511,25 @@ p {
     margin-bottom: 1rem;
 }
 
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.chart-grid .work-panel {
+    min-height: 260px;
+    padding: 0.9rem;
+}
+
+.chart-grid canvas {
+    display: block;
+    width: 100% !important;
+    height: 180px !important;
+    max-height: 180px;
+}
+
 .metric-card {
     display: grid;
     gap: 0.4rem;
@@ -552,6 +604,25 @@ p {
     border-radius: var(--radius);
     background: var(--panel-strong);
     padding: 0.85rem;
+}
+
+.pending-request-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pending-request-actions form {
+    margin: 0;
+}
+
+.pending-request-actions .primary-btn,
+.pending-request-actions .danger-btn,
+.pending-request-actions .ghost-btn {
+    min-height: 2.35rem;
+    width: auto;
+    padding: 0 0.85rem;
 }
 
 .approval-row.single-column {

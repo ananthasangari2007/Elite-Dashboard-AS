@@ -8,7 +8,7 @@ from app.models import Submission, Task
 from app.services.points import record_award
 from app.services.submissions import can_submit_task_on_date, current_submission_date
 from app.utils.auth import role_required
-from app.utils.uploads import save_uploaded_file
+from app.utils.uploads import save_uploaded_proof_files
 
 
 submissions_bp = Blueprint("submissions", __name__, url_prefix="/submissions")
@@ -30,15 +30,15 @@ def submit(task_id):
             submission.description = request.form.get("description", "").strip()
             submission.github_link = request.form.get("github_link", "").strip()
             submission.drive_link = request.form.get("drive_link", "").strip()
+            submitted_files = request.files.getlist("proof_files")
+            if not submitted_files:
+                raise ValueError("Please upload at least one proof file.")
+            submission.proof_url = save_uploaded_proof_files(submitted_files, limit=10)
             submission.status = "waiting_approval"
             submission.submitted_at = datetime.utcnow()
 
             if not submission.description:
                 raise ValueError("Proof description is required.")
-
-            file_path = save_uploaded_file(request.files.get("proof_file"), "submissions")
-            if file_path:
-                submission.file_path = file_path
 
             db.session.add(submission)
             db.session.commit()

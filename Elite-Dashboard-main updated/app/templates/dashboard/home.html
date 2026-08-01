@@ -284,6 +284,68 @@
                 {% endif %}
             </article>
         </section>
+
+        {% if current_user.role == "admin" %}
+            <section class="chart-grid">
+                <article class="work-panel">
+                    <div class="section-title">
+                        <div><p class="eyebrow">Admin</p><h2>Top students by points</h2></div>
+                    </div>
+                    <canvas id="adminTopStudentsChart"></canvas>
+                </article>
+                <article class="work-panel">
+                    <div class="section-title">
+                        <div><p class="eyebrow">Tasks</p><h2>Task distribution</h2></div>
+                    </div>
+                    <canvas id="adminTaskDistributionChart"></canvas>
+                </article>
+                <article class="work-panel">
+                    <div class="section-title">
+                        <div><p class="eyebrow">Trend</p><h2>Approved task trend</h2></div>
+                    </div>
+                    <canvas id="adminApprovalTrendChart"></canvas>
+                </article>
+                <article class="work-panel">
+                    <div class="section-title">
+                        <div><p class="eyebrow">Overview</p><h2>Submission status</h2></div>
+                    </div>
+                    <canvas id="adminSubmissionStatusChart"></canvas>
+                </article>
+                <article class="work-panel">
+                    <div class="section-title">
+                        <div><p class="eyebrow">Performance</p><h2>Task ID completion</h2></div>
+                    </div>
+                    <canvas id="adminTaskPerformanceChart"></canvas>
+                </article>
+            </section>
+        {% else %}
+            <section class="chart-grid">
+                <article class="work-panel">
+                    <div class="section-title">
+                        <div><p class="eyebrow">Progress</p><h2>Weekly points earned</h2></div>
+                    </div>
+                    <canvas id="studentWeeklyPointsChart"></canvas>
+                </article>
+                <article class="work-panel">
+                    <div class="section-title">
+                        <div><p class="eyebrow">Completion</p><h2>Task completion progress</h2></div>
+                    </div>
+                    <canvas id="studentTaskProgressChart"></canvas>
+                </article>
+                <article class="work-panel">
+                    <div class="section-title">
+                        <div><p class="eyebrow">Activity</p><h2>Daily submission streak</h2></div>
+                    </div>
+                    <canvas id="studentDailySubmissionChart"></canvas>
+                </article>
+                <article class="work-panel">
+                    <div class="section-title">
+                        <div><p class="eyebrow">Sprint</p><h2>Sprint participation</h2></div>
+                    </div>
+                    <canvas id="studentSprintParticipationChart"></canvas>
+                </article>
+            </section>
+        {% endif %}
     </main>
 </div>
 {% endblock %}

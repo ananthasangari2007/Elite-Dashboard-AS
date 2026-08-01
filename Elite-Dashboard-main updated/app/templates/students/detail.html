@@ -83,7 +83,11 @@
                                 <p>{{ submission.description }}</p>
                                 {% if submission.github_link %}<p><a href="{{ submission.github_link }}" target="_blank" rel="noopener">Open GitHub Proof</a></p>{% endif %}
                                 {% if submission.drive_link %}<p><a href="{{ submission.drive_link }}" target="_blank" rel="noopener">Open Drive Proof</a></p>{% endif %}
-                                {% if submission.file_path %}<p><a href="{{ url_for('static', filename=submission.file_path) }}" download>Download Uploaded File</a></p>{% endif %}
+                                {% if submission.proof_url %}
+                                    <div class="proof-actions">
+                                        <button type="button" class="ghost-btn proof-preview" data-proof-list="{{ submission.proof_url }}">Preview Proof</button>
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                     {% endfor %}

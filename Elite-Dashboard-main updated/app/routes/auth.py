@@ -47,7 +47,7 @@ def login(portal):
                 flash("Your account is waiting for admin approval.", "warning")
                 return render_template("auth/login.html", portal=portal, portal_config=portal_config)
 
-            login_user(user, remember=remember)
+            login_user(user, remember=True if user.role == "student" else remember)
             flash(f"Welcome back, {user.name}.", "success")
             if user.role == "student" and not user.profile_completed:
                 return redirect(url_for("profile.edit"))

@@ -13,7 +13,8 @@
             <label><span>Proof Description</span><textarea name="description" required {% if already_submitted_today %}disabled{% endif %}>{{ submission.description if submission else "" }}</textarea></label>
             <label><span>GitHub Link</span><input name="github_link" value="{{ submission.github_link if submission else '' }}" {% if already_submitted_today %}disabled{% endif %}></label>
             <label><span>Google Drive Link</span><input name="drive_link" value="{{ submission.drive_link if submission else '' }}" {% if already_submitted_today %}disabled{% endif %}></label>
-            <label><span>Proof File</span><input type="file" name="proof_file" {% if already_submitted_today %}disabled{% endif %}></label>
+            <label><span>Upload Proof Files</span><input type="file" name="proof_files" accept=".png,.jpg,.jpeg,.pdf" multiple required {% if already_submitted_today %}disabled{% endif %}></label>
+            <small>Upload up to 10 JPG, JPEG, PNG, or PDF proof files. Admins will preview them in the browser.</small>
             <button class="primary-btn" type="submit" {% if already_submitted_today %}disabled{% endif %}>{{ "Submitted Today" if already_submitted_today else "Submit Proof" }}</button>
         </form>
     </section>
