@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Task Status | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div><p class="eyebrow">Task Status</p><h1>Your Submissions</h1></div>
+        <div class="header-actions">
+            <a class="ghost-btn" href="{{ url_for('tasks.index') }}">Assigned Tasks</a>
+            <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+        </div>
+    </header>
+    <section class="work-panel">
+        <div class="task-list">
+            {% if submissions %}
+                {% for submission in submissions %}
+                    <div class="task-row task-row-simple">
+                        <div>
+                            <strong>{{ submission.task.title }}</strong>
+                            <span>{{ submission.status.replace("_", " ")|title }} · Submission Date: {{ submission.submission_date.strftime("%d %b %Y") }} · submitted {{ submission.submitted_at.strftime("%H:%M") }}</span>
+                            {% if submission.admin_remarks %}
+                                <p>{{ submission.admin_remarks }}</p>
+                            {% endif %}
+                        </div>
+                        <b>{{ submission.task.reward_points }} points</b>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state"><strong>No Submission Available</strong><span>Submit a task proof to track its approval status here.</span></div>
+            {% endif %}
+        </div>
+    </section>
+</main>
+{% endblock %}

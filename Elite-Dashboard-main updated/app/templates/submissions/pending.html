@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Pending Approvals | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div><p class="eyebrow">Approval Queue</p><h1>Pending Submissions by Student</h1></div>
+        <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+    </header>
+    <section class="work-panel">
+        <div class="task-list">
+            {% if grouped_submissions %}
+                {% for group in grouped_submissions.values() %}
+                    {% set student = group.student %}
+                    {% set submissions = group.submissions %}
+                    <article class="person-approval">
+                        <div class="section-title">
+                            <div>
+                                <p class="eyebrow">{{ student.email }}</p>
+                                <h2>{{ student.name }}</h2>
+                            </div>
+                            <a class="ghost-btn" href="{{ url_for('students.detail', student_id=student.id) }}">View Profile</a>
+                        </div>
+                        <div class="task-list">
+                            {% for submission in submissions %}
+                                <div class="approval-row">
+                                    <div>
+                                        <strong>{{ submission.task.title }}</strong>
+                                        <span>{{ submission.task.task_type|title }} · {{ submission.task.reward_points }} points · Submission Date: {{ submission.submission_date.strftime("%d %b %Y") }} · {{ submission.submitted_at.strftime("%H:%M") }}</span>
+                                        <p>{{ submission.description }}</p>
+                                        <div class="proof-actions">
+                                            {% if submission.github_link %}<a class="ghost-btn" href="{{ submission.github_link }}" target="_blank" rel="noopener">Open GitHub Proof</a>{% endif %}
+                                            {% if submission.drive_link %}<a class="ghost-btn" href="{{ submission.drive_link }}" target="_blank" rel="noopener">Open Drive Proof</a>{% endif %}
+                                            {% if submission.file_path %}<a class="ghost-btn" href="{{ url_for('static', filename=submission.file_path) }}" download>Download Uploaded File</a>{% endif %}
+                                        </div>
+                                    </div>
+                                    <form method="post" action="{{ url_for('submissions.approve', submission_id=submission.id) }}" class="inline-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input name="remarks" placeholder="Remarks">
+                                        <button class="primary-btn" type="submit">Approve</button>
+                                    </form>
+                                    <form method="post" action="{{ url_for('submissions.reject', submission_id=submission.id) }}" class="inline-form">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input name="remarks" placeholder="Remarks">
+                                        <button class="ghost-btn" type="submit">Reject</button>
+                                    </form>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state"><strong>No Submission Available</strong><span>Pending submissions will appear grouped by student.</span></div>
+            {% endif %}
+        </div>
+    </section>
+</main>
+{% endblock %}

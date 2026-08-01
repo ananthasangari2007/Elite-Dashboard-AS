@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Profile Details | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="login-layout">
+    <section class="login-card wide-card">
+        <div class="login-topbar">
+            <a class="brand" href="{{ url_for('dashboard.home') }}">
+                <span class="brand-mark">E</span>
+                <span>Elite Batch</span>
+            </a>
+            {% if current_user.profile_completed %}
+                <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+            {% endif %}
+        </div>
+        <div class="panel-heading">
+            <p class="eyebrow">Student Profile</p>
+            <h1>Update your details</h1>
+            <p>Your college email is locked from login. Complete these details once; they stay saved for future logins.</p>
+        </div>
+        <form method="post" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-grid">
+                <label><span>Name</span><input name="name" value="{{ current_user.name }}" required></label>
+                <label><span>College Email</span><input value="{{ current_user.email }}" readonly></label>
+            </div>
+            <div class="form-grid">
+                <label><span>Register Number</span><input name="register_number" value="{{ current_user.register_number or '' }}" required></label>
+                <label><span>Department</span><input name="department" value="{{ current_user.department or '' }}" required></label>
+            </div>
+            <div class="form-grid">
+                <label><span>LinkedIn Profile</span><input name="linkedin_url" value="{{ current_user.linkedin_url or '' }}"></label>
+                <label><span>GitHub Profile</span><input name="github_url" value="{{ current_user.github_url or '' }}"></label>
+            </div>
+            <div class="form-grid">
+                <label><span>LeetCode Profile</span><input name="leetcode_url" value="{{ current_user.leetcode_url or '' }}"></label>
+                <label><span>Preferred Domain</span><input name="preferred_domain" value="{{ current_user.preferred_domain or '' }}" placeholder="AI, Web, Data, Cloud"></label>
+            </div>
+            <button class="primary-btn" type="submit">Update Details</button>
+        </form>
+    </section>
+</main>
+{% endblock %}

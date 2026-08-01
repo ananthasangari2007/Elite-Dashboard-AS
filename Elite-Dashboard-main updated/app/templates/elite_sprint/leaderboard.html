@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Elite Sprint Leaderboard | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Elite Sprint</p>
+            <h1>Leaderboard</h1>
+        </div>
+        <div class="header-actions">
+            <a class="ghost-btn" href="{{ url_for('elite_sprint.index') }}">Sprint Bidding</a>
+            <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+        </div>
+    </header>
+    <section class="work-panel">
+        {% include "elite_sprint/_leaderboard.html" %}
+    </section>
+</main>
+{% endblock %}

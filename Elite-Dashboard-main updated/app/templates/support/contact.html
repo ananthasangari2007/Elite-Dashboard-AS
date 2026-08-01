@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Contact Support | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="login-layout">
+    <section class="login-card wide-card">
+        <div class="panel-heading">
+            <p class="eyebrow">Contact Support</p>
+            <h1>Mail admin through portal</h1>
+            <p>Your message is stored inside the admin support inbox.</p>
+        </div>
+        <form method="post" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label><span>Subject</span><input name="subject" required></label>
+            <label><span>Message</span><textarea name="message" required></textarea></label>
+            <button class="primary-btn" type="submit">Send to Admin</button>
+        </form>
+    </section>
+</main>
+{% endblock %}

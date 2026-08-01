@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ portal_config.label }} Login | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="login-layout">
+    <section class="login-card">
+        <div class="login-topbar">
+            <a class="brand" href="{{ url_for('auth.choose_portal') }}">
+                <span class="brand-mark">E</span>
+                <span>Elite Batch</span>
+            </a>
+            <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">
+                <span data-theme-icon>☾</span>
+            </button>
+        </div>
+
+        <div class="panel-heading">
+            <p class="eyebrow">{{ portal_config.label }}</p>
+            <h1>Secure sign in</h1>
+            <p>{{ portal_config.hint }}</p>
+        </div>
+
+        <form method="post" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>
+                <span>Email address</span>
+                <input type="email" name="email" autocomplete="email" placeholder="name@college.edu" required>
+            </label>
+            <label>
+                <span>Password</span>
+                <input type="password" name="password" autocomplete="current-password" placeholder="Enter password" required>
+            </label>
+            <div class="form-row">
+                <label class="check-row">
+                    <input type="checkbox" name="remember">
+                    <span>Remember me</span>
+                </label>
+                <a href="#">Forgot password?</a>
+            </div>
+            <button class="primary-btn" type="submit">Sign in</button>
+        </form>
+        {% if portal == "student" %}
+            <p class="form-note">New student? <a href="{{ url_for('auth.register_student') }}">Create account</a></p>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

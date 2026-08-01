@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit Task' if editing else 'Create Task' }} | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="login-layout">
+    <section class="login-card wide-card">
+        <div class="login-topbar">
+            <a class="brand" href="{{ url_for('dashboard.home') }}">
+                <span class="brand-mark">E</span>
+                <span>Elite Batch</span>
+            </a>
+            <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+        </div>
+        <div class="panel-heading">
+            <p class="eyebrow">Task Management</p>
+            <h1>{{ 'Edit Task' if editing else 'Create Task' }}</h1>
+            <p>Tasks saved here appear immediately on dashboard and student task pages.</p>
+        </div>
+        <form method="post" enctype="multipart/form-data" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label><span>Title</span><input name="title" value="{{ task.title if task else '' }}" required></label>
+            <label><span>Category</span><input name="category" value="{{ task.category if task else '' }}" placeholder="Programming, GitHub, Project"></label>
+            <label><span>Description</span><textarea name="description" required>{{ task.description if task else '' }}</textarea></label>
+            <label><span>Instructions</span><textarea name="instructions">{{ task.instructions if task else '' }}</textarea></label>
+            <label><span>Reference Links</span><textarea name="reference_links" placeholder="One link per line">{{ task.reference_links if task else '' }}</textarea></label>
+            <div class="form-grid">
+                <label><span>Task Type</span>
+                    <select name="task_type">
+                        <option value="daily" {% if task and task.task_type == 'daily' %}selected{% endif %}>Daily</option>
+                        <option value="weekly" {% if task and task.task_type == 'weekly' %}selected{% endif %}>Weekly</option>
+                        <option value="monthly" {% if task and task.task_type == 'monthly' %}selected{% endif %}>Monthly</option>
+                    </select>
+                </label>
+                <label><span>Reward Points</span><input type="number" name="reward_points" min="0" value="{{ task.reward_points if task else 0 }}" required></label>
+            </div>
+            <div class="form-grid">
+                <label><span>Start Date</span><input type="datetime-local" name="start_at" value="{{ task.start_at.strftime('%Y-%m-%dT%H:%M') if task and task.start_at else '' }}"></label>
+                <label><span>Due Date</span><input type="datetime-local" name="due_at" value="{{ task.due_at.strftime('%Y-%m-%dT%H:%M') if task and task.due_at else '' }}"></label>
+                <label><span>Deadline</span><input type="datetime-local" name="deadline_at" value="{{ task.deadline_at.strftime('%Y-%m-%dT%H:%M') if task and task.deadline_at else '' }}"></label>
+            </div>
+            <label><span>Status</span>
+                <select name="status">
+                    <option value="active" {% if task and task.status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if task and task.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </label>
+            <label><span>Attachment</span><input type="file" name="attachment"></label>
+            <button class="primary-btn" type="submit">{{ 'Update Task' if editing else 'Save Task' }}</button>
+        </form>
+    </section>
+</main>
+{% endblock %}

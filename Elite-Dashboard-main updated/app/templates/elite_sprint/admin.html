@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Elite Sprint Bidding | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Admin Portal</p>
+            <h1>Elite Sprint Bidding</h1>
+        </div>
+        <div class="header-actions">
+            <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+            <a class="ghost-btn" href="{{ url_for('elite_sprint.analytics') }}">Analytics</a>
+            <a class="ghost-btn" href="{{ url_for('elite_sprint.export') }}">Export Excel</a>
+        </div>
+    </header>
+
+    <section class="content-grid">
+        <article class="work-panel">
+            <div class="section-title">
+                <div>
+                    <p class="eyebrow">Open Sprint</p>
+                    <h2>Session window</h2>
+                </div>
+            </div>
+            <form class="auth-form" method="post">
+                {{ form.hidden_tag() }}
+                <label>{{ form.sprint_type.label }} {{ form.sprint_type() }}</label>
+                <label>{{ form.sprint_date.label }} {{ form.sprint_date() }}</label>
+                <label>{{ form.start_time.label }} {{ form.start_time() }}</label>
+                <label>{{ form.end_time.label }} {{ form.end_time() }}</label>
+                <small class="muted-text">Enter your local time ({{ timezone_label }}). If the end time is earlier than the start time, it closes on the next day.</small>
+                <button class="primary-btn" type="submit">Open Sprint</button>
+            </form>
+        </article>
+
+        <article class="work-panel span-2">
+            <div class="section-title">
+                <div>
+                    <p class="eyebrow">{{ "Active" if active_session else "Latest" }} Session</p>
+                    <h2>{{ "Sprint countdown" if active_session else "Elite Sprint Closed" }}</h2>
+                </div>
+                {% if active_session %}
+                    <form method="post" action="{{ url_for('elite_sprint.close', session_id=active_session.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="danger-btn" type="submit">Close Sprint</button>
+                    </form>
+                {% endif %}
+            </div>
+            {% if latest_session %}
+                <div class="sprint-status">
+                    <div class="countdown-timer" data-countdown data-reload-on-expire="true" data-end-time="{{ (active_session.end_time if active_session else latest_session.end_time).isoformat() }}">
+                        --:--:--
+                    </div>
+                    <span class="status-pill">{{ latest_session.status|title }}</span>
+                    <small>{{ latest_session.sprint_type|title }} Sprint · {{ latest_session.sprint_date.strftime("%d %b %Y") }} · {{ latest_start_local.strftime("%H:%M") }} - {{ latest_end_local.strftime("%H:%M") }} {{ timezone_label }}</small>
+                </div>
+            {% else %}
+                <div class="empty-state"><strong>No Sprint Session</strong><span>Open the first sprint when bidding should begin.</span></div>
+            {% endif %}
+        </article>
+
+        <article class="metric-card"><span>Total Participants</span><strong>{{ metrics.participants }}</strong><small>students submitted</small></article>
+        <article class="metric-card"><span>Total Daily Bids</span><strong>{{ metrics.daily }}</strong><small>daily tasks planned</small></article>
+        <article class="metric-card"><span>Total Weekly Bids</span><strong>{{ metrics.weekly }}</strong><small>weekly tasks planned</small></article>
+        <article class="metric-card"><span>Total Monthly Bids</span><strong>{{ metrics.monthly }}</strong><small>monthly tasks planned</small></article>
+        <article class="metric-card"><span>Highest Bidder</span><strong class="metric-text">{{ metrics.highest_bidder }}</strong><small>top sprint total</small></article>
+        <article class="metric-card"><span>Participation</span><strong>{{ metrics.participation }}%</strong><small>of student accounts</small></article>
+
+        <article class="work-panel span-2">
+            <div class="section-title">
+                <div>
+                    <p class="eyebrow">Separate Leaderboard</p>
+                    <h2>Elite Sprint Leaderboard</h2>
+                </div>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">Open Board</a>
+            </div>
+            {% include "elite_sprint/_leaderboard.html" %}
+        </article>
+    </section>
+</main>
+{% endblock %}

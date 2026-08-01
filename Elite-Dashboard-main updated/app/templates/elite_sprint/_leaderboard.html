@@ -1,0 +1,29 @@
+{% if leaderboard %}
+    <div class="sprint-podium" aria-label="Elite Sprint top three">
+        {% for row in leaderboard[:3] %}
+            <div class="podium-card podium-{{ row.rank }}">
+                <span>#{{ row.rank }}</span>
+                <strong>{{ row.student_name }}</strong>
+                <small>{{ row.department }}</small>
+                <b>{{ row.total_tasks }} tasks</b>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="leaderboard sprint-board">
+        {% for row in leaderboard %}
+            <div class="leader-row">
+                <span>{{ row.rank }}</span>
+                <div>
+                    <strong>{{ row.student_name }}</strong>
+                    <small>{{ row.department }} - {{ row.badge }}</small>
+                </div>
+                <b>{{ row.total_tasks }}</b>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <strong>No Sprint Bids Yet</strong>
+        <span>The Elite Sprint Leaderboard appears as soon as students submit bids.</span>
+    </div>
+{% endif %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Penalty | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="login-layout">
+    <section class="login-card">
+        <div class="panel-heading">
+            <p class="eyebrow">Point Ledger</p>
+            <h1>Record Penalty</h1>
+            <p>The system stores this as a negative point transaction.</p>
+        </div>
+        <form method="post" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label><span>Student</span>
+                <select name="student_id" required>
+                    {% for student in students %}
+                        <option value="{{ student.id }}">{{ student.name }} · {{ student.email }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label><span>Penalty Points</span><input type="number" name="points" min="1" required></label>
+            <label><span>Reason</span><textarea name="reason" required></textarea></label>
+            <button class="primary-btn" type="submit">Save Penalty</button>
+        </form>
+    </section>
+</main>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ task.title }} | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">{{ task.task_code or "Manual" }} · {{ task.task_type|title }} Task</p>
+            <h1>{{ task.title }}</h1>
+        </div>
+        <div class="header-actions">
+            <a class="ghost-btn" href="{{ url_for('tasks.index') }}">Tasks</a>
+            {% if current_user.role == "admin" %}
+                <form method="post" action="{{ url_for('tasks.delete', task_id=task.id) }}" data-confirm="Delete this task?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="danger-btn" type="submit">Delete Task</button>
+                </form>
+            {% endif %}
+            {% if current_user.role == "student" %}
+                {% if submitted_today %}
+                    <button class="ghost-btn" type="button" disabled>Submitted Today</button>
+                {% else %}
+                    <a class="ghost-btn" href="{{ url_for('submissions.submit', task_id=task.id) }}">Submit Proof</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </header>
+    <section class="content-grid">
+        <article class="work-panel span-2">
+            <div class="section-title"><div><p class="eyebrow">Description</p><h2>Task Details</h2></div></div>
+            <p>{{ task.description or "No description available." }}</p>
+            <h2>Instructions</h2>
+            <p>{{ task.instructions or "No instructions available." }}</p>
+            <h2>Reference Links</h2>
+            {% if task.reference_links %}
+                {% for link in task.reference_links.splitlines() %}
+                    <p><a href="{{ link }}" target="_blank" rel="noopener">{{ link }}</a></p>
+                {% endfor %}
+            {% else %}
+                <p>No reference links available.</p>
+            {% endif %}
+        </article>
+        <article class="work-panel">
+            <div class="leaderboard">
+                <div class="leader-row"><span>Pts</span><div><strong>{{ task.reward_points }}</strong><small>Reward points</small></div></div>
+                <div class="leader-row"><span>Cat</span><div><strong>{{ task.category or "General" }}</strong><small>task category</small></div></div>
+                <div class="leader-row"><span>Due</span><div><strong>{{ task.due_at.strftime("%d %b %Y") if task.due_at else "No date" }}</strong><small>Due date</small></div></div>
+                {% if current_user.role == "student" %}
+                    <div class="leader-row"><span>Day</span><div><strong>{{ "Submitted today" if submitted_today else "Ready today" }}</strong><small>{{ "Available again tomorrow." if submitted_today else "Ready for today's submission." }}</small></div></div>
+                {% endif %}
+                {% if task.attachment_path %}
+                    <a class="primary-btn" href="{{ url_for('static', filename=task.attachment_path) }}" download>Download File</a>
+                {% endif %}
+            </div>
+        </article>
+    </section>
+</main>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Students | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Student Monitoring</p>
+            <h1>Registered Students</h1>
+        </div>
+        <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+    </header>
+    <section class="work-panel">
+        {% if students %}
+            <div class="data-table">
+                <div class="table-row student-table-row table-head">
+                    <span>Name</span><span>Email</span><span>Department</span><span>Register No</span><span>Overall</span><span>Badge</span><span>Monthly</span><span>Action</span>
+                </div>
+                {% for student in students %}
+                    <div class="table-row student-table-row">
+                        <span><a href="{{ url_for('students.detail', student_id=student.id) }}">{{ student.name }}</a></span>
+                        <span>{{ student.email }}</span>
+                        <span>{{ student.department or "Not updated" }}</span>
+                        <span>{{ student.register_number or "Not updated" }}</span>
+                        <span>{{ overall.get(student.id, 0) }}</span>
+                        <span><span class="level-badge">{{ badges[student.id].label }}</span></span>
+                        <span>{{ monthly.get(student.id, 0) }}</span>
+                        <span>
+                            <form method="post" action="{{ url_for('students.delete', student_id=student.id) }}" data-confirm="Remove this student and their submissions/points?">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="danger-btn" type="submit">Remove</button>
+                            </form>
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state"><strong>No Students Registered</strong><span>Student accounts will appear here after registration.</span></div>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

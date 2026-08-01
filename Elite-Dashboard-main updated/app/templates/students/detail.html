@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ student.name }} | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Student Profile</p>
+            <h1>{{ student.name }}</h1>
+        </div>
+        <div class="header-actions">
+            <a class="ghost-btn" href="{{ url_for('students.index') }}">Students</a>
+            <form method="post" action="{{ url_for('students.delete', student_id=student.id) }}" data-confirm="Remove this student and their submissions/points?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="danger-btn" type="submit">Remove Student</button>
+            </form>
+            <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+        </div>
+    </header>
+
+    <section class="metric-grid">
+        <article class="metric-card"><span>Email</span><strong class="metric-text">{{ student.email }}</strong><small>college login mail</small></article>
+        <article class="metric-card"><span>Department</span><strong class="metric-text">{{ student.department or "Not updated" }}</strong><small>student profile</small></article>
+        <article class="metric-card"><span>Overall Points</span><strong>{{ overall }}</strong><small>awards minus penalties</small></article>
+        <article class="metric-card badge-card"><span>Badge Level</span><strong class="metric-text">{{ badge.label }}</strong><small>{{ badge.range }} points</small></article>
+    </section>
+
+    <section class="content-grid">
+        <article class="work-panel">
+            <div class="section-title"><div><p class="eyebrow">Bonus Points</p><h2>Award points</h2></div></div>
+            <form method="post" action="{{ url_for('students.bonus', student_id=student.id) }}" class="auth-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label><span>Bonus reason</span>
+                    <select name="rule_code" data-rule-select data-points-target="bonus-points" required>
+                        {% for rule in bonus_rules %}
+                            <option value="{{ rule.code }}" data-points="{{ rule.points }}">{{ rule.title }} (+{{ rule.points }})</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label><span>Reason note</span><textarea name="reason_detail" placeholder="Optional details for this award"></textarea></label>
+                <label><span>Points to add</span><input id="bonus-points" type="number" name="points_preview" readonly></label>
+                <button class="primary-btn" type="submit">Give Bonus Points</button>
+            </form>
+        </article>
+
+        <article class="work-panel">
+            <div class="section-title"><div><p class="eyebrow">Penalty Points</p><h2>Deduct points</h2></div></div>
+            <form method="post" action="{{ url_for('students.penalty', student_id=student.id) }}" class="auth-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label><span>Penalty reason</span>
+                    <select name="rule_code" data-rule-select data-points-target="penalty-points" required>
+                        {% for rule in penalty_rules %}
+                            <option value="{{ rule.code }}" data-points="{{ -rule.points }}">{{ rule.title }} ({{ rule.points }})</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label><span>Reason note</span><textarea name="reason_detail" placeholder="Optional details for this deduction"></textarea></label>
+                <label><span>Points to deduct</span><input id="penalty-points" type="number" name="points_preview" readonly></label>
+                <button class="primary-btn" type="submit">Apply Penalty</button>
+            </form>
+        </article>
+
+        <article class="work-panel">
+            <div class="section-title"><div><p class="eyebrow">Links</p><h2>Profiles</h2></div></div>
+            <div class="leaderboard">
+                <div class="leader-row"><span>Reg</span><div><strong>{{ student.register_number or "Not updated" }}</strong><small>register number</small></div></div>
+                <div class="leader-row"><span>Dom</span><div><strong>{{ student.preferred_domain or "Not updated" }}</strong><small>preferred domain</small></div></div>
+                <div class="leader-row"><span>Pts</span><div><strong>{{ monthly }}</strong><small>monthly points</small></div></div>
+                {% if student.linkedin_url %}<a class="ghost-btn" href="{{ student.linkedin_url }}" target="_blank" rel="noopener">LinkedIn</a>{% endif %}
+                {% if student.github_url %}<a class="ghost-btn" href="{{ student.github_url }}" target="_blank" rel="noopener">GitHub</a>{% endif %}
+                {% if student.leetcode_url %}<a class="ghost-btn" href="{{ student.leetcode_url }}" target="_blank" rel="noopener">LeetCode</a>{% endif %}
+            </div>
+        </article>
+
+        <article class="work-panel span-2">
+            <div class="section-title"><div><p class="eyebrow">Submission Proof</p><h2>Uploaded work</h2></div></div>
+            <div class="task-list">
+                {% if submissions %}
+                    {% for submission in submissions %}
+                        <div class="approval-row single-column">
+                            <div>
+                                <strong>{{ submission.task.title }}</strong>
+                                <span>{{ submission.status.replace("_", " ")|title }} - Submission Date: {{ submission.submission_date.strftime("%d %b %Y") }}</span>
+                                <p>{{ submission.description }}</p>
+                                {% if submission.github_link %}<p><a href="{{ submission.github_link }}" target="_blank" rel="noopener">Open GitHub Proof</a></p>{% endif %}
+                                {% if submission.drive_link %}<p><a href="{{ submission.drive_link }}" target="_blank" rel="noopener">Open Drive Proof</a></p>{% endif %}
+                                {% if submission.file_path %}<p><a href="{{ url_for('static', filename=submission.file_path) }}" download>Download Uploaded File</a></p>{% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state"><strong>No Submission Available</strong><span>Student proof uploads will appear here.</span></div>
+                {% endif %}
+            </div>
+        </article>
+
+        <article class="work-panel span-2">
+            <div class="section-title"><div><p class="eyebrow">Point Ledger</p><h2>Transaction history</h2></div></div>
+            <div class="task-list">
+                {% if transactions %}
+                    {% for transaction in transactions %}
+                        <div class="task-row task-row-simple">
+                            <div>
+                                <strong>{{ transaction.reason }}</strong>
+                                <span>{{ transaction.type|title }} - {{ transaction.created_at.strftime("%d %b %Y %H:%M") }}</span>
+                            </div>
+                            <b>{{ transaction.points }}</b>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state"><strong>No Point Transactions Yet</strong><span>Approvals, bonuses, and penalties will appear here.</span></div>
+                {% endif %}
+            </div>
+        </article>
+    </section>
+</main>
+{% endblock %}

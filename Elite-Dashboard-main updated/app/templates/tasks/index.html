@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ title or "Tasks" }} | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Task List</p>
+            <h1>{{ title or "All Tasks" }}</h1>
+        </div>
+        <div class="header-actions">
+            <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+            <a class="ghost-btn" href="{{ url_for('tasks.daily') }}">Daily</a>
+            <a class="ghost-btn" href="{{ url_for('tasks.weekly') }}">Weekly</a>
+            <a class="ghost-btn" href="{{ url_for('tasks.monthly') }}">Monthly</a>
+            {% if current_user.role == "admin" %}
+                <a class="ghost-btn" href="{{ url_for('tasks.create') }}">Create Task</a>
+            {% endif %}
+        </div>
+    </header>
+    <section class="work-panel">
+        <div class="task-list">
+            {% if tasks %}
+                {% for task in tasks %}
+                    <div class="task-row task-row-simple">
+                        <div>
+                            <a href="{{ url_for('tasks.detail', task_id=task.id) }}"><strong>{{ task.title }}</strong></a>
+                            <span>{{ task.task_code or "Manual" }} · {{ task.category or "General" }} · {{ task.task_type|title }} · {{ task.reward_points }} points</span>
+                            {% if current_user.role == "student" %}
+                                {% if task.id in submitted_today_ids %}
+                                    <small class="submission-state blocked">Submitted today - available again tomorrow.</small>
+                                {% else %}
+                                    <small class="submission-state ready">Ready for today's submission.</small>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                        {% if current_user.role == "student" %}
+                            {% if task.id in submitted_today_ids %}
+                                <button class="ghost-btn" type="button" disabled>Submitted Today</button>
+                            {% else %}
+                                <a class="ghost-btn" href="{{ url_for('submissions.submit', task_id=task.id) }}">Submit Task</a>
+                            {% endif %}
+                        {% else %}
+                            <div class="row-actions">
+                                <b>{{ task.due_at.strftime("%d %b") if task.due_at else "No deadline" }}</b>
+                                <a class="ghost-btn" href="{{ url_for('tasks.edit', task_id=task.id) }}">Edit</a>
+                                <form method="post" action="{{ url_for('tasks.delete', task_id=task.id) }}" data-confirm="Delete this task?">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="danger-btn" type="submit">Delete</button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state"><strong>No Tasks Posted Yet</strong><span>Created tasks will appear here.</span></div>
+            {% endif %}
+        </div>
+    </section>
+</main>
+{% endblock %}

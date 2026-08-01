@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% block title %}Dashboard | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<div class="dashboard-layout">
+    <button class="mobile-menu-btn" type="button" data-sidebar-toggle aria-label="Open navigation">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="sidebar-backdrop" data-sidebar-close></div>
+    <aside class="sidebar">
+        <a class="brand" href="{{ url_for('dashboard.home') }}">
+            <span class="brand-mark">E</span>
+            <span>Elite Batch</span>
+        </a>
+        <nav class="side-nav" aria-label="Dashboard navigation">
+            <a class="active" href="{{ url_for('dashboard.home') }}">Overview</a>
+            {% if current_user.role == "admin" %}
+                <a href="{{ url_for('students.index') }}">Students</a>
+                <a href="{{ url_for('tasks.index') }}">Tasks</a>
+                <a href="{{ url_for('submissions.pending') }}">Approvals</a>
+                <a href="{{ url_for('elite_sprint.admin') }}">Elite Sprint Bidding</a>
+                <a href="{{ url_for('support.admin_inbox') }}">Support</a>
+                <a href="{{ url_for('exports.excel') }}">Reports</a>
+            {% else %}
+                <a href="{{ url_for('tasks.index') }}">Tasks</a>
+                <a href="{{ url_for('elite_sprint.student') }}">Elite Sprint Bidding</a>
+                <a href="{{ url_for('submissions.status') }}">Task Status</a>
+                <a href="{{ url_for('profile.edit') }}">Profile</a>
+                <a href="{{ url_for('support.contact') }}">Contact Support</a>
+            {% endif %}
+        </nav>
+    </aside>
+
+    <main class="dashboard-main">
+        <header class="dashboard-header">
+            <div>
+                <p class="eyebrow">{{ "Admin Portal" if current_user.role == "admin" else "Student Portal" }}</p>
+                <h1>Good to see you, {{ current_user.name }}</h1>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">
+                    <span data-theme-icon>☾</span>
+                </button>
+                {% if current_user.role == "admin" %}
+                    <a class="ghost-btn" href="{{ url_for('students.index') }}">Students</a>
+                    <a class="ghost-btn" href="{{ url_for('submissions.pending') }}">Approvals</a>
+                    <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Sprint</a>
+                    <a class="ghost-btn" href="{{ url_for('penalties.create') }}">Penalty</a>
+                    <a class="ghost-btn" href="{{ url_for('exports.excel') }}">Export</a>
+                {% else %}
+                    <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">Sprint</a>
+                    <a class="ghost-btn" href="{{ url_for('profile.edit') }}">Profile</a>
+                    <a class="ghost-btn" href="{{ url_for('support.contact') }}">Support</a>
+                {% endif %}
+                <a class="ghost-btn" href="{{ url_for('auth.logout') }}">Logout</a>
+            </div>
+        </header>
+
+        <section class="metric-grid" aria-label="Dashboard metrics">
+            {% for metric in metrics %}
+                <article class="metric-card tone-{{ metric.tone }}">
+                    <span>{{ metric.label }}</span>
+                    <strong>{{ metric.value }}</strong>
+                    <small>{{ metric.detail }}</small>
+                </article>
+            {% endfor %}
+        </section>
+
+        {% if current_user.role == "student" and active_sprint %}
+            <section class="sprint-alert glow-badge">
+                <strong>⚡ Elite Sprint Bidding is OPEN now!</strong>
+                <span>Submit your sprint plan before the deadline.</span>
+                <b data-countdown data-reload-on-expire="true" data-end-time="{{ active_sprint.end_time.isoformat() }}">--:--:--</b>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">Open Sprint</a>
+            </section>
+        {% endif %}
+
+        <section class="content-grid">
+            <article class="work-panel span-2">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">{{ "Admin Task Control" if current_user.role == "admin" else "Task Streams" }}</p>
+                        <h2>{{ "Posted tasks" if current_user.role == "admin" else "Open your assigned tasks" }}</h2>
+                    </div>
+                    {% if current_user.role == "admin" %}
+                        <a class="ghost-btn" href="{{ url_for('tasks.create') }}">Create Task</a>
+                    {% endif %}
+                </div>
+                {% if current_user.role == "student" %}
+                    <div class="stream-grid">
+                        <a class="stream-card" href="{{ url_for('tasks.daily') }}"><strong>Daily</strong><span>{{ category_counts.daily }} tasks</span></a>
+                        <a class="stream-card" href="{{ url_for('tasks.weekly') }}"><strong>Weekly</strong><span>{{ category_counts.weekly }} tasks</span></a>
+                        <a class="stream-card" href="{{ url_for('tasks.monthly') }}"><strong>Monthly</strong><span>{{ category_counts.monthly }} tasks</span></a>
+                    </div>
+                {% else %}
+                    <div class="task-list">
+                        {% if tasks %}
+                            {% for task in tasks %}
+                                <div class="task-row task-row-simple">
+                                    <div>
+                                        <a href="{{ url_for('tasks.detail', task_id=task.id) }}"><strong>{{ task.title }}</strong></a>
+                                        <span>{{ task.task_code or "Manual" }} · {{ task.task_type|title }} · {{ task.reward_points }} points</span>
+                                    </div>
+                                    <b>{{ task.due_at.strftime("%d %b") if task.due_at else "No deadline" }}</b>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <strong>No Tasks Posted Yet</strong>
+                                <span>Create the first task to start tracking submissions and points.</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </article>
+
+            {% if current_user.role == "student" %}
+            <article class="work-panel">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">Completed</p>
+                        <h2>Approved tasks</h2>
+                    </div>
+                    <a class="ghost-btn" href="{{ url_for('submissions.status') }}">Task Status</a>
+                </div>
+                <div class="leaderboard">
+                    {% if completed_submissions %}
+                        {% for submission in completed_submissions %}
+                            <div class="leader-row">
+                                <span>{{ submission.task.task_type[:1]|upper }}</span>
+                                <div>
+                                    <strong>{{ submission.task.title }}</strong>
+                                    <small>{{ submission.reviewed_at.strftime("%d %b") if submission.reviewed_at else "Approved" }}</small>
+                                </div>
+                                <b>{{ submission.task.reward_points }}</b>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state"><strong>No Completed Tasks</strong><span>Approved submissions will appear here.</span></div>
+                    {% endif %}
+                </div>
+            </article>
+            {% endif %}
+
+            <article class="work-panel">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">Leaderboard</p>
+                        <h2>Top performers</h2>
+                    </div>
+                </div>
+                <div class="leaderboard">
+                    {% if leaderboard %}
+                        {% for student in leaderboard %}
+                            <div class="leader-row">
+                                <span>{{ student.rank }}</span>
+                                <div>
+                                    <strong>{{ student.name }}</strong>
+                                    <small>{{ student.badge }}</small>
+                                </div>
+                                <b>{{ student.points }}</b>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <strong>No Students Registered</strong>
+                            <span>Leaderboard appears after student accounts are available.</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </article>
+
+            <article class="work-panel">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">Daily Streaks</p>
+                        <h2>Top daily streaks</h2>
+                    </div>
+                </div>
+                <div class="leaderboard">
+                    {% if streak_rows %}
+                        {% for row in streak_rows %}
+                            <div class="leader-row">
+                                <span>{{ loop.index }}</span>
+                                <div>
+                                    <strong>{{ row.name }}</strong>
+                                    <small>{{ row.department }}</small>
+                                </div>
+                                <b>{{ row.streak }}</b>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state"><strong>No Streaks Yet</strong><span>Approved daily submissions build streaks.</span></div>
+                    {% endif %}
+                </div>
+            </article>
+
+            {% if latest_sprint %}
+            <article class="work-panel">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">Elite Sprint</p>
+                        <h2>{{ "Live sprint leaderboard" if active_sprint else "Latest sprint leaderboard" }}</h2>
+                    </div>
+                    <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">View</a>
+                </div>
+                <div class="leaderboard">
+                    {% if sprint_board %}
+                        {% for student in sprint_board %}
+                            <div class="leader-row">
+                                <span>{{ student.rank }}</span>
+                                <div>
+                                    <strong>{{ student.student_name }}</strong>
+                                    <small>{{ student.department }} · {{ student.badge }}</small>
+                                </div>
+                                <b>{{ student.total_tasks }}</b>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state"><strong>No Sprint Bids Yet</strong><span>Bids will appear as students submit plans.</span></div>
+                    {% endif %}
+                </div>
+            </article>
+            {% endif %}
+
+            {% if current_user.role == "admin" %}
+            <article class="work-panel">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">Daily Submissions</p>
+                        <h2>Today's activity</h2>
+                    </div>
+                </div>
+                <div class="leaderboard">
+                    <div class="leader-row"><span>Now</span><div><strong>{{ submission_analytics.today_submissions }}</strong><small>submissions today</small></div></div>
+                    <div class="leader-row"><span>Stu</span><div><strong>{{ submission_analytics.unique_students_today }}</strong><small>unique students today</small></div></div>
+                    <div class="leader-row"><span>Task</span><div><strong>{{ submission_analytics.most_active_daily_task }}</strong><small>most active daily task</small></div></div>
+                    <div class="leader-row"><span>Avg</span><div><strong>{{ submission_analytics.average_submissions_per_student_week }}</strong><small>per active student this week</small></div></div>
+                </div>
+            </article>
+
+            <article class="work-panel span-2">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">Performance</p>
+                        <h2>Student point chart</h2>
+                    </div>
+                    <a class="ghost-btn" href="{{ url_for('students.index') }}">Students</a>
+                </div>
+                {% if performance_rows %}
+                    <div class="performance-bars">
+                        {% for row in performance_rows %}
+                            <div class="bar-row">
+                                <span>{{ row.name }}</span>
+                                <div><i style="width: {{ (row.points / (performance_rows[0].points if performance_rows[0].points > 0 else 1) * 100)|round(0) }}%"></i></div>
+                                <b>{{ row.points }}</b>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state tall"><strong>No Performance Data</strong><span>Approved tasks, bonus points, and penalties will build the chart.</span></div>
+                {% endif %}
+            </article>
+            {% endif %}
+
+            <article class="work-panel span-2">
+                <div class="section-title">
+                    <div>
+                        <p class="eyebrow">Analytics</p>
+                        <h2>Monthly point movement</h2>
+                    </div>
+                </div>
+                {% if monthly_total %}
+                    <div class="point-summary">
+                        <strong>{{ monthly_total }}</strong>
+                        <span>net points recorded this month from awards and penalties.</span>
+                    </div>
+                {% else %}
+                    <div class="empty-state tall">
+                        <strong>No Point Transactions Yet</strong>
+                        <span>Approved submissions and penalties will appear here after they are recorded.</span>
+                    </div>
+                {% endif %}
+            </article>
+        </section>
+    </main>
+</div>
+{% endblock %}

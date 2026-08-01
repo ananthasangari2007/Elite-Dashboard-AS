@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Student Registration | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="login-layout">
+    <section class="login-card">
+        <div class="login-topbar">
+            <a class="brand" href="{{ url_for('auth.choose_portal') }}">
+                <span class="brand-mark">E</span>
+                <span>Elite Batch</span>
+            </a>
+        </div>
+        <div class="panel-heading">
+            <p class="eyebrow">Student Account</p>
+            <h1>Create account</h1>
+            <p>Use your college email and password. After login, complete your profile details once.</p>
+        </div>
+        <form method="post" class="auth-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label><span>Name</span><input name="name" required></label>
+            <label><span>College Email</span><input type="email" name="email" required></label>
+            <label><span>Password</span><input type="password" name="password" minlength="8" required></label>
+            <button class="primary-btn" type="submit">Create Account</button>
+        </form>
+    </section>
+</main>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Support Inbox | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div><p class="eyebrow">Support Inbox</p><h1>Student Messages</h1></div>
+        <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+    </header>
+    <section class="work-panel">
+        <div class="task-list">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="approval-row single-column">
+                        <div>
+                            <strong>{{ message.subject }}</strong>
+                            <span>{{ message.student.name }} · {{ message.student.email }} · {{ message.created_at.strftime("%d %b %Y %H:%M") }}</span>
+                            <p>{{ message.message }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state"><strong>No Support Messages</strong><span>Student messages will appear here.</span></div>
+            {% endif %}
+        </div>
+    </section>
+</main>
+{% endblock %}

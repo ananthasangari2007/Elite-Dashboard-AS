@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Sprint Analytics | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Sprint Analytics</p>
+            <h1>Participation trends</h1>
+        </div>
+        <div class="header-actions">
+            <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Sprint Admin</a>
+            <a class="ghost-btn" href="{{ url_for('elite_sprint.export') }}">Export Excel</a>
+        </div>
+    </header>
+    <section class="metric-grid">
+        <article class="metric-card"><span>Students Participated</span><strong>{{ metrics.participants }}</strong><small>selected session</small></article>
+        <article class="metric-card"><span>Average Tasks</span><strong>{{ metrics.average_tasks }}</strong><small>per bid</small></article>
+        <article class="metric-card"><span>Highest Daily Bid</span><strong>{{ metrics.highest_daily }}</strong><small>daily tasks</small></article>
+        <article class="metric-card"><span>Highest Weekly Bid</span><strong>{{ metrics.highest_weekly }}</strong><small>weekly tasks</small></article>
+        <article class="metric-card"><span>Highest Monthly Bid</span><strong>{{ metrics.highest_monthly }}</strong><small>monthly tasks</small></article>
+    </section>
+    <section class="work-panel">
+        <div class="section-title"><div><p class="eyebrow">Chart.js</p><h2>Participation trend graph</h2></div></div>
+        <canvas id="sprintTrendChart" height="120" data-labels='{{ metrics.trend_labels|tojson }}' data-values='{{ metrics.trend_values|tojson }}'></canvas>
+    </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}

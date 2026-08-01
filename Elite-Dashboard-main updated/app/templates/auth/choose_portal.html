@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Choose Portal | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="portal-only">
+    <section class="portal-panel portal-compact">
+        <div class="login-topbar">
+            <a class="brand" href="{{ url_for('auth.choose_portal') }}">
+                <span class="brand-mark">E</span>
+                <span>Elite Batch</span>
+            </a>
+            <button class="icon-btn" type="button" data-theme-toggle aria-label="Toggle theme">
+                <span data-theme-icon>☾</span>
+            </button>
+        </div>
+        <div class="panel-heading">
+            <p class="eyebrow">Choose Portal</p>
+            <h1>Sign in to continue</h1>
+        </div>
+        <div class="portal-list">
+            {% for key, item in portals.items() %}
+                <a class="portal-card" href="{{ url_for('auth.login', portal=key) }}">
+                    <span class="radio-dot"></span>
+                    <span>
+                        <strong>{{ item.label }}</strong>
+                        <small>{{ item.hint }}</small>
+                    </span>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+{% endblock %}
