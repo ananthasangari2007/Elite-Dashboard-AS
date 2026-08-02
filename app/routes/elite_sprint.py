@@ -161,6 +161,17 @@ def student():
             )
             validate_task_ids(daily_tasks, weekly_tasks, monthly_tasks)
 
+            planned_count = len(daily_tasks) + len(weekly_tasks) + len(monthly_tasks)
+            task_ids = daily_tasks + weekly_tasks + monthly_tasks
+
+            if planned_count <= 0:
+                flash("Enter at least one planned task.", "danger")
+                return redirect(url_for("elite_sprint.student"))
+
+            if len(task_ids) != planned_count:
+                flash("Number of task IDs must match the planned task count.", "danger")
+                return redirect(url_for("elite_sprint.student"))
+
             if bid is None:
                 bid = EliteSprintBid(session_id=active_session.id, student_id=current_user.id)
                 db.session.add(bid)
