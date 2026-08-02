@@ -26,8 +26,6 @@ def can_submit_task_on_date(student_id, task_id, target_date=None):
     statuses = {row.status for row in rows}
     if "waiting_approval" in statuses or "pending" in statuses:
         return False, "A pending submission exists for this task today. Please wait for admin review."
-    if "approved" in statuses:
-        return False, "This task is already approved for today and is locked for this date."
     if "rejected" in statuses:
         return True, None
     return True, None

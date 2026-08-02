@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user
+from sqlalchemy import func
 
 from app import db
 from app.models import Submission, Task
@@ -22,6 +23,20 @@ def submit(task_id):
     existing_today = Submission.query.filter_by(task_id=task.id, student_id=current_user.id, submission_date=today).order_by(Submission.submitted_at.desc()).first()
     if request.method == "POST":
         try:
+            approved_today = Submission.query.filter(
+                Submission.student_id == current_user.id,
+                Submission.task_id == task.id,
+                Submission.status == "approved",
+                func.date(Submission.submitted_at) == date.today()
+            ).first()
+
+            if approved_today:
+                flash(
+                    "You already completed this task today. It will reopen automatically at 12:00 AM.",
+                    "info"
+                )
+                return redirect(url_for("dashboard.home"))
+
             allowed, message = can_submit_task_on_date(current_user.id, task.id, today)
             if not allowed:
                 raise ValueError(message or "You cannot submit this task again today.")

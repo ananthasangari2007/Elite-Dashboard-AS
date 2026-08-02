@@ -23,7 +23,7 @@ def upgrade():
         batch_op.create_index(batch_op.f("ix_user_has_active_sprint_penalty"), ["has_active_sprint_penalty"], unique=False)
 
     op.execute("UPDATE \"user\" SET approval_status = 'approved' WHERE approval_status IS NULL")
-    op.execute("UPDATE \"user\" SET has_active_sprint_penalty = 0 WHERE has_active_sprint_penalty IS NULL")
+    op.execute("UPDATE \"user\" SET has_active_sprint_penalty = false WHERE has_active_sprint_penalty IS NULL")
 
     with op.batch_alter_table("user", schema=None) as batch_op:
         batch_op.alter_column("approval_status", existing_type=sa.String(length=30), nullable=False)
@@ -44,7 +44,7 @@ def upgrade():
         batch_op.add_column(sa.Column("is_locked", sa.Boolean(), nullable=True))
         batch_op.create_index(batch_op.f("ix_elite_sprint_bid_is_locked"), ["is_locked"], unique=False)
 
-    op.execute("UPDATE elite_sprint_bid SET is_locked = 1 WHERE is_locked IS NULL")
+    op.execute("UPDATE elite_sprint_bid SET is_locked = true WHERE is_locked IS NULL")
 
     with op.batch_alter_table("elite_sprint_bid", schema=None) as batch_op:
         batch_op.alter_column("is_locked", existing_type=sa.Boolean(), nullable=False)
