@@ -953,12 +953,25 @@ p {
 }
 
 .countdown-timer,
-.sprint-alert b {
+.sprint-alert b,
+.countdown-value {
     color: var(--accent);
     font-variant-numeric: tabular-nums;
     font-size: clamp(1.6rem, 6vw, 3rem);
     font-weight: 850;
     line-height: 1;
+}
+
+.countdown-label {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.countdown-timer.verified-state {
+    color: var(--success);
 }
 
 .sprint-status {
@@ -983,6 +996,16 @@ p {
     color: var(--success);
     font-weight: 850;
     padding: 0 0.8rem;
+}
+
+.status-pill.penalty {
+    background: rgba(220, 38, 38, 0.12);
+    color: var(--danger);
+}
+
+.status-pill.verified {
+    background: rgba(217, 119, 6, 0.12);
+    color: var(--warning);
 }
 
 .sprint-form {

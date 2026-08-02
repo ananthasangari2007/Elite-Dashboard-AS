@@ -28,7 +28,7 @@
                 <label>{{ form.sprint_date.label }} {{ form.sprint_date() }}</label>
                 <label>{{ form.start_time.label }} {{ form.start_time() }}</label>
                 <label>{{ form.end_time.label }} {{ form.end_time() }}</label>
-                <small class="muted-text">Enter your local time ({{ timezone_label }}). If the end time is earlier than the start time, it closes on the next day.</small>
+                <small class="muted-text">Enter your local time ({{ timezone_label }}). The bidding window opens at start time and closes at end time. If the end time is earlier than the start time, it closes on the next day.</small>
                 <button class="primary-btn" type="submit">Open Sprint</button>
             </form>
         </article>
@@ -37,26 +37,72 @@
             <div class="section-title">
                 <div>
                     <p class="eyebrow">{{ "Active" if active_session else "Latest" }} Session</p>
-                    <h2>{{ "Sprint countdown" if active_session else "Elite Sprint Closed" }}</h2>
+                    <h2>{{ "Sprint countdown" if active_session else (latest_session.status|title if latest_session else "Elite Sprint Closed") }}</h2>
                 </div>
                 {% if latest_session %}
-                    {% if latest_session.is_verified %}
-                        <span class="status-pill">Verified</span>
-                    {% endif %}
-                    <form method="post" action="{{ url_for('elite_sprint.verify_sprint_route') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="session_id" value="{{ latest_session.id }}">
-                        <button class="primary-btn" type="submit" {% if latest_session.is_verified %}disabled{% endif %}>Sprint Verification Bot</button>
-                    </form>
+                    <div class="header-actions">
+                        {% if latest_session.verified %}
+                            <span class="status-pill">Verified</span>
+                            <span class="status-pill">{{ latest_session.verification_mode|title }}</span>
+                            <span class="status-pill">Timer Stopped</span>
+                        {% else %}
+                            <span class="status-pill">{{ latest_session.status|title }}</span>
+                            <form method="post" action="{{ url_for('elite_sprint.run_verification') }}" data-confirm="Run sprint verification now? This stops the completion timer and is irreversible.">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="session_id" value="{{ latest_session.id }}">
+                                <button class="primary-btn" type="submit">Run Sprint Verification</button>
+                            </form>
+                        {% endif %}
+                        <a class="ghost-btn" href="{{ url_for('elite_sprint.verification_results', session_id=latest_session.id) }}">View Verification Results</a>
+                    </div>
                 {% endif %}
             </div>
             {% if latest_session %}
                 <div class="sprint-status">
-                    <div class="countdown-timer" data-countdown data-reload-on-expire="true" data-end-time="{{ (active_session.end_time if active_session else latest_session.end_time).isoformat() }}">
-                        --:--:--
-                    </div>
-                    <span class="status-pill">{{ latest_session.status|title }}</span>
-                    <small>{{ latest_session.sprint_type|title }} Sprint · {{ latest_session.sprint_date.strftime("%d %b %Y") }} · {{ latest_start_local.strftime("%H:%M") }} - {{ latest_end_local.strftime("%H:%M") }} {{ timezone_label }}</small>
+                    {% if latest_session.verified %}
+                        <div class="countdown-timer verified-state">
+                            <span class="countdown-label">Verification complete</span>
+                            <b class="countdown-value">--:--:--</b>
+                        </div>
+                    {% elif latest_session.completion_ends_at %}
+                        <div class="countdown-timer" data-countdown data-end-time="{{ completion_end_local.isoformat() if completion_end_local else '' }}">
+                            <span class="countdown-label">Completion window ends</span>
+                            <b class="countdown-value">--:--:--</b>
+                        </div>
+                    {% elif active_session %}
+                        <div class="countdown-timer" data-countdown data-reload-on-expire="true" data-end-time="{{ bidding_end_local.isoformat() if bidding_end_local else '' }}">
+                            <span class="countdown-label">Bidding closes in</span>
+                            <b class="countdown-value">--:--:--</b>
+                        </div>
+                    {% else %}
+                        <div class="countdown-timer">
+                            <span class="countdown-label">Bidding closed</span>
+                            <b class="countdown-value">--:--:--</b>
+                        </div>
+                    {% endif %}
+
+                    <span class="status-pill">
+                        {% if latest_session.verified %}
+                            ⭐ Verified
+                        {% elif latest_session.completion_ends_at %}
+                            ⏳ In completion window
+                        {% elif active_session %}
+                            ⚡ Bidding open
+                        {% else %}
+                            🏁 Bidding closed
+                        {% endif %}
+                    </span>
+
+                    <small>
+                        {{ latest_session.sprint_type|title }} Sprint · {{ latest_session.sprint_date.strftime("%d %b %Y") }}
+                        · Bidding: {{ latest_start_local.strftime("%H:%M") if latest_start_local else "N/A" }} - {{ latest_end_local.strftime("%H:%M") if latest_end_local else "N/A" }} {{ timezone_label }}
+                        {% if latest_session.completion_ends_at %}
+                         · Completion ends: {{ completion_end_local.strftime("%H:%M") if completion_end_local else "N/A" }} {{ timezone_label }}
+                        {% endif %}
+                        {% if latest_session.verified_at %}
+                         · Verified {{ latest_session.verified_at.strftime("%H:%M") }} {{ timezone_label }} via {{ latest_session.verification_mode|title }}
+                        {% endif %}
+                    </small>
                 </div>
             {% else %}
                 <div class="empty-state"><strong>No Sprint Session</strong><span>Open the first sprint when bidding should begin.</span></div>
@@ -73,7 +119,7 @@
         <article class="work-panel span-2">
             <div class="section-title">
                 <div>
-                    <p class="eyebrow">Separate Leaderboard</p>
+                    <p class="eyebrow">Sprint Board</p>
                     <h2>Elite Sprint Leaderboard</h2>
                 </div>
                 <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">Open Board</a>

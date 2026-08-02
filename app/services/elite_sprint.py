@@ -1,14 +1,23 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func
 
 from app import db
-from app.models import EliteSprintBid, EliteSprintSession, PointTransaction, Submission, Task, User
+from app.models import (
+    EliteSprintBid,
+    EliteSprintSession,
+    PointTransaction,
+    SprintVerificationResult,
+    Submission,
+    Task,
+    User,
+)
 
 
 APP_TIMEZONE = os.getenv("ELITE_TIMEZONE", "Asia/Kolkata")
+COMPLETION_WINDOW_HOURS = 15
 
 
 def sprint_timezone():
@@ -40,39 +49,71 @@ def latest_session():
 
 def close_expired_sprints():
     now = utc_now()
-    expired = EliteSprintSession.query.filter(
-        EliteSprintSession.status == "active",
-        EliteSprintSession.end_time <= now,
-    ).all()
-    if not expired:
-        return 0
-    for session in expired:
-        session.status = "closed"
-    db.session.commit()
-
-    for session in expired:
-        if not session.is_verified:
-            try:
-                verify_sprint(session)
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-
-    return len(expired)
+    active = EliteSprintSession.query.filter(EliteSprintSession.status == "active").all()
+    closed_any = False
+    for session in active:
+        end = session.bidding_end or session.end_time
+        if end and now >= end:
+            session.status = "closed"
+            session.start_completion_window()
+            closed_any = True
+    if closed_any:
+        db.session.commit()
+    try:
+        check_and_run_automatic_verification()
+    except Exception:
+        db.session.rollback()
+    return closed_any
 
 
 def get_active_session():
     close_expired_sprints()
     now = utc_now()
-    return (
-        EliteSprintSession.query.filter(
-            EliteSprintSession.status == "active",
-            EliteSprintSession.start_time <= now,
-            EliteSprintSession.end_time > now,
-        )
-        .order_by(EliteSprintSession.end_time.asc())
-        .first()
+    candidates = (
+        EliteSprintSession.query.filter(EliteSprintSession.status == "active")
+        .order_by(EliteSprintSession.created_at.desc())
+        .all()
     )
+    for session in candidates:
+        start = session.bidding_starts_at or session.start_time
+        end = session.bidding_ends_at or session.end_time
+        if start and end and start <= now < end:
+            return session
+    return None
+
+
+def get_bidding_window_end(session):
+    if not session:
+        return None
+    return session.bidding_ends_at or session.end_time
+
+
+def get_completion_window_end(session):
+    if not session:
+        return None
+    return session.completion_ends_at
+
+
+def get_submission_sprint_session(student_id):
+    now = utc_now()
+    bids = (
+        EliteSprintBid.query.filter_by(student_id=student_id, is_locked=True)
+        .order_by(EliteSprintBid.submitted_at.desc())
+        .all()
+    )
+    for bid in bids:
+        session = bid.session
+        if not session or session.verified:
+            continue
+        bidding_end = session.bidding_end or session.end_time
+        if not bidding_end:
+            continue
+        completion_deadline = session.completion_ends_at or (
+            bidding_end + timedelta(hours=COMPLETION_WINDOW_HOURS)
+        )
+        if now < completion_deadline:
+            return session
+    return None
 
 
 def sprint_leaderboard(session_id=None, limit=None):
@@ -116,6 +157,8 @@ def sprint_leaderboard(session_id=None, limit=None):
                 "bid": bid,
                 "golden_star": bid.has_golden_star if bid else False,
                 "penalty": bid.student.has_active_sprint_penalty if bid and bid.student else False,
+                "golden_stars": (bid.student.golden_stars or 0) if bid and bid.student else 0,
+                "penalty_flags": (bid.student.penalty_flags or 0) if bid and bid.student else 0,
             }
         )
     return leaderboard
@@ -175,59 +218,147 @@ def active_task_ids_by_type():
     return grouped, all_ids
 
 
-def verify_sprint(session):
-    if not session or session.is_verified:
-        raise ValueError("Sprint session is not active or already verified.")
+def task_identifier(task):
+    if not task:
+        return None
+    if task.task_code:
+        return task.task_code.strip().upper()
+    return str(task.id)
+
+
+def verification_for_student(session_id, student_id):
+    return SprintVerificationResult.query.filter_by(
+        session_id=session_id, student_id=student_id
+    ).first()
+
+
+def get_sprint_verification_results(session_id):
+    return (
+        SprintVerificationResult.query.filter_by(session_id=session_id)
+        .order_by(SprintVerificationResult.student_id.asc())
+        .all()
+    )
+
+
+def run_sprint_verification(session_id, mode="automatic"):
+    session = EliteSprintSession.query.get(session_id)
+    if not session:
+        raise ValueError("Sprint session not found.")
+    if session.verified:
+        return {"already_verified": True, "golden_star": [], "penalty_count": 0, "results_created": 0}
 
     bids = EliteSprintBid.query.filter_by(session_id=session.id).all()
-    if not bids:
-        session.is_verified = True
-        return {"golden_star": None, "penalty_count": 0}
 
     golden_star_students = []
     penalty_count = 0
+    results_created = 0
 
     for bid in bids:
         student = bid.student
-        sprint_date = session.sprint_date
-        bidded_ids = set()
-        for task_id in (bid.daily_tasks or []):
-            bidded_ids.add(str(task_id).upper())
-        for task_id in (bid.weekly_tasks or []):
-            bidded_ids.add(str(task_id).upper())
-        for task_id in (bid.monthly_tasks or []):
-            bidded_ids.add(str(task_id).upper())
+        if student is None:
+            continue
 
-        approved_ids = set()
-        submissions = Submission.query.filter_by(student_id=student.id, status="approved").all()
-        for sub in submissions:
-            if sub.submission_date == sprint_date or (sub.submitted_at and sub.submitted_at.date() == sprint_date):
-                task = Task.query.get(sub.task_id)
-                if task:
-                    task_id_str = str(task.id)
-                    if task.task_code:
-                        task_id_str = task.task_code.strip().upper()
-                    approved_ids.add(task_id_str)
+        existing = SprintVerificationResult.query.filter_by(
+            session_id=session.id, student_id=student.id
+        ).first()
+        if existing:
+            if existing.is_golden_star:
+                golden_star_students.append(student.name)
+            if existing.has_penalty:
+                penalty_count += 1
+            continue
 
-        missing_ids = bidded_ids - approved_ids
-        if not missing_ids and bidded_ids:
+        # Use identifiers for comparison (Task Code or ID)
+        planned_identifiers = set()
+        identifier_to_task = {}
+        for ptid in bid.planned_task_ids:
+            task = Task.query.filter((Task.id == ptid) | (Task.task_code == ptid)).first()
+            if task:
+                tid = task_identifier(task)
+                planned_identifiers.add(tid)
+                identifier_to_task[tid] = task
+
+        if not planned_identifiers:
+            continue
+
+        # Get all submissions for this sprint session (ignore approval status)
+        submitted_identifiers = set()
+        subs = Submission.query.filter_by(
+            student_id=student.id, sprint_session_id=session.id
+        ).all()
+        for sub in subs:
+            tid = task_identifier(sub.task)
+            if tid:
+                submitted_identifiers.add(tid)
+
+        # Compare current sprint session data only (extra submissions allowed)
+        missing_identifiers = planned_identifiers - submitted_identifiers
+        penalty_points = 0
+
+        if not missing_identifiers:
+            # All bidded tasks submitted
+            student.golden_stars = (student.golden_stars or 0) + 1
             bid.has_golden_star = True
             golden_star_students.append(student.name)
+            result = SprintVerificationResult(
+                session_id=session.id,
+                student_id=student.id,
+                planned_task_ids=",".join(sorted(planned_identifiers)),
+                submitted_task_ids=",".join(sorted(submitted_identifiers)),
+                missing_task_ids="",
+                penalty_points=0,
+                earned_golden_star=True,
+            )
         else:
-            for task_id_str in missing_ids:
-                task = Task.query.filter(
-                    (Task.id == task_id_str) | (Task.task_code == task_id_str)
-                ).first()
+            # Penalty for missing bidded tasks
+            for tid in sorted(missing_identifiers):
+                task = identifier_to_task.get(tid)
                 if task:
                     penalty = PointTransaction.penalty(
                         student_id=student.id,
                         points=task.reward_points,
-                        reason=f"Sprint penalty: missed bidded task {task.task_code or task.id}",
+                        reason=f"Sprint incomplete: {task.task_code or task.id}",
                         approved_by=None,
                     )
                     db.session.add(penalty)
-                    student.has_active_sprint_penalty = True
-                    penalty_count += 1
+                    penalty_points += task.reward_points
+            student.penalty_flags = (student.penalty_flags or 0) + 1
+            student.has_active_sprint_penalty = True
+            penalty_count += 1
+            result = SprintVerificationResult(
+                session_id=session.id,
+                student_id=student.id,
+                planned_task_ids=",".join(sorted(planned_identifiers)),
+                submitted_task_ids=",".join(sorted(submitted_identifiers)),
+                missing_task_ids=",".join(sorted(missing_identifiers)),
+                penalty_points=penalty_points,
+                earned_golden_star=False,
+            )
+        db.session.add(result)
+        results_created += 1
 
-    session.is_verified = True
-    return {"golden_star": golden_star_students, "penalty_count": penalty_count}
+    session.mark_verified(mode=mode)
+    db.session.commit()
+    return {
+        "already_verified": False,
+        "golden_star": golden_star_students,
+        "penalty_count": penalty_count,
+        "results_created": results_created,
+    }
+
+
+def check_and_run_automatic_verification():
+    now = utc_now()
+    sessions = EliteSprintSession.query.filter(
+        EliteSprintSession.verified.is_(False),
+        EliteSprintSession.completion_ends_at.isnot(None),
+        EliteSprintSession.completion_ends_at <= now,
+    ).all()
+    for session in sessions:
+        if session.verified:
+            continue
+        try:
+            run_sprint_verification(session.id, mode="automatic")
+        except Exception:
+            db.session.rollback()
+    return len(sessions)

@@ -15,6 +15,8 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     is_active_account = db.Column(db.Boolean, default=True, nullable=False)
     has_active_sprint_penalty = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    golden_stars = db.Column(db.Integer, default=0, nullable=False)
+    penalty_flags = db.Column(db.Integer, default=0, nullable=False)
     profile_completed = db.Column(db.Boolean, default=False, nullable=False)
     register_number = db.Column(db.String(80), index=True)
     department = db.Column(db.String(120), index=True)

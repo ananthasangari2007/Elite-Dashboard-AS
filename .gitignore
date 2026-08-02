@@ -4,3 +4,5 @@ __pycache__/
 venv/
 .env
 instance/*.sqlite3
+_cleanup.py
+_inspect_db.py

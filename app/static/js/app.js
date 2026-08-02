@@ -67,13 +67,14 @@ function parseUtcDate(value) {
 
 document.querySelectorAll("[data-countdown]").forEach((timer) => {
     const endAt = parseUtcDate(timer.dataset.endTime);
+    const valueTarget = timer.querySelector("[data-countdown-value], .countdown-value, b") || timer;
     const tick = () => {
         if (!endAt) return;
         const remaining = Math.max(0, endAt.getTime() - Date.now());
         const hours = Math.floor(remaining / 3600000);
         const minutes = Math.floor((remaining % 3600000) / 60000);
         const seconds = Math.floor((remaining % 60000) / 1000);
-        timer.textContent = [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+        valueTarget.textContent = [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
         if (remaining <= 0) {
             document.querySelectorAll("[data-sprint-form] input, [data-sprint-form] button").forEach((field) => {
                 field.disabled = true;

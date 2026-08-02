@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Verification Results | Elite Batch Dashboard{% endblock %}
+{% block body %}
+<main class="dashboard-main">
+    <header class="dashboard-header">
+        <div>
+            <p class="eyebrow">Verification Results</p>
+            <h1>Sprint {{ session.id }} — {{ session.sprint_date.strftime("%d %b %Y") }}</h1>
+        </div>
+        <div class="header-actions">
+            <span class="status-pill">{{ session.sprint_type|title }} Sprint</span>
+            {% if session.verified %}
+                <span class="status-pill">Verified via {{ session.verification_mode|title }} at {{ session.verified_at.strftime("%H:%M") if session.verified_at else "N/A" }} {{ timezone_label }}</span>
+            {% else %}
+                <span class="status-pill">Pending</span>
+            {% endif %}
+            <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Sprint Board</a>
+        </div>
+    </header>
+
+    <section class="work-panel">
+        {% if results %}
+            <div class="data-table">
+                <div class="table-head">Student · Type · Planned · Submitted · Missing · Penalty · Result</div>
+                {% for row in results %}
+                    <div class="leader-row" style="grid-template-columns: 1.2fr 0.6fr 0.9fr 0.9fr 0.9fr 0.6fr 0.7fr;">
+                        <div>
+                            <strong>{{ row.student.name }}</strong>
+                            <small>{{ row.student.email }}</small>
+                        </div>
+                        <span>{{ "Daily" if not row.earned_golden_star else "Star" }}</span>
+                        <span>{{ row.parse_ids(row.planned_task_ids)|length }}</span>
+                        <span>{{ row.parse_ids(row.submitted_task_ids)|length }}</span>
+                        <span>{{ row.parse_ids(row.missing_task_ids)|length }}</span>
+                        <b>{{ row.penalty_points }} pts</b>
+                        {% if row.earned_golden_star %}
+                            <span class="badge badge-gold">⭐ Star</span>
+                        {% else %}
+                            <span class="badge badge-red">🚫 Penalty</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <strong>No Verification Results</strong>
+                {% if session.verified %}
+                    <span>This sprint was verified but has no recorded results.</span>
+                {% else %}
+                    <span>Run sprint verification to generate results for this session.</span>
+                {% endif %}
+            </div>
+        {% endif %}
+    </section>
+</main>
+{% endblock %}

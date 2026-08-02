@@ -12,6 +12,12 @@
                 {% if row.penalty %}
                     <span class="badge badge-red">🔴 Penalty Applied</span>
                 {% endif %}
+                {% if row.golden_stars %}
+                    <small>⭐ x{{ row.golden_stars }}</small>
+                {% endif %}
+                {% if row.penalty_flags %}
+                    <small>🚫 x{{ row.penalty_flags }}</small>
+                {% endif %}
             </div>
         {% endfor %}
     </div>
@@ -29,6 +35,12 @@
                 {% endif %}
                 {% if row.penalty %}
                     <span class="badge badge-red">🔴 Penalty Applied</span>
+                {% endif %}
+                {% if row.golden_stars %}
+                    <small>⭐ x{{ row.golden_stars }}</small>
+                {% endif %}
+                {% if row.penalty_flags %}
+                    <small>🚫 x{{ row.penalty_flags }}</small>
                 {% endif %}
             </div>
         {% endfor %}

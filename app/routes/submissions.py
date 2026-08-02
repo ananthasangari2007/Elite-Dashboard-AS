@@ -1,11 +1,11 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import current_user
-from sqlalchemy import func
 
 from app import db
 from app.models import Submission, Task
+from app.services.elite_sprint import get_submission_sprint_session
 from app.services.points import record_award
 from app.services.submissions import can_submit_task_on_date, current_submission_date
 from app.utils.auth import role_required
@@ -20,23 +20,18 @@ submissions_bp = Blueprint("submissions", __name__, url_prefix="/submissions")
 def submit(task_id):
     task = Task.query.get_or_404(task_id)
     today = current_submission_date()
-    existing_today = Submission.query.filter_by(task_id=task.id, student_id=current_user.id, submission_date=today).order_by(Submission.submitted_at.desc()).first()
+    allowed, _ = can_submit_task_on_date(current_user.id, task.id, today)
+    existing_today = (
+        Submission.query.filter_by(
+            task_id=task.id,
+            student_id=current_user.id,
+            submission_date=today,
+        )
+        .order_by(Submission.submitted_at.desc())
+        .first()
+    )
     if request.method == "POST":
         try:
-            approved_today = Submission.query.filter(
-                Submission.student_id == current_user.id,
-                Submission.task_id == task.id,
-                Submission.status == "approved",
-                func.date(Submission.submitted_at) == date.today()
-            ).first()
-
-            if approved_today:
-                flash(
-                    "You already completed this task today. It will reopen automatically at 12:00 AM.",
-                    "info"
-                )
-                return redirect(url_for("dashboard.home"))
-
             allowed, message = can_submit_task_on_date(current_user.id, task.id, today)
             if not allowed:
                 raise ValueError(message or "You cannot submit this task again today.")
@@ -51,6 +46,9 @@ def submit(task_id):
             submission.proof_url = save_uploaded_proof_files(submitted_files, limit=10)
             submission.status = "waiting_approval"
             submission.submitted_at = datetime.utcnow()
+            linked_session = get_submission_sprint_session(current_user.id)
+            if linked_session:
+                submission.sprint_session_id = linked_session.id
 
             if not submission.description:
                 raise ValueError("Proof description is required.")
@@ -63,7 +61,12 @@ def submit(task_id):
             db.session.rollback()
             flash(str(exc), "danger")
 
-    return render_template("submissions/form.html", task=task, submission=existing_today, already_submitted_today=existing_today is not None and existing_today.status in ["waiting_approval", "approved", "pending"])
+    return render_template(
+        "submissions/form.html",
+        task=task,
+        submission=existing_today,
+        already_submitted_today=not allowed,
+    )
 
 
 @submissions_bp.route("/pending")

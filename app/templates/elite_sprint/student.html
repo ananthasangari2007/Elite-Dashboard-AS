@@ -13,19 +13,56 @@
         </div>
     </header>
 
-    {% if active_session %}
-        <section class="sprint-alert glow-badge">
-            <strong>⚡ Elite Sprint Bidding is OPEN now!</strong>
-            <span>{{ active_session.sprint_type|title }} sprint. Submit your sprint plan before the deadline.</span>
-            <b data-countdown data-reload-on-expire="true" data-end-time="{{ active_session.end_time.isoformat() }}">--:--:--</b>
-            <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">Open Sprint</a>
+    {% if latest_session %}
+        {% set bidding_open = active_session is not none %}
+        {% set in_completion = latest_session.completion_ends_at is not none and not latest_session.verified %}
+        {% set is_verified = latest_session.verified %}
+        {% set rv = verification_result %}
+
+        {% if bidding_open %}
+            <section class="sprint-alert glow-badge">
+                <strong>⚡ Elite Sprint Bidding is OPEN now!</strong>
+                <span>{{ latest_session.sprint_type|title }} sprint. Submit your sprint plan before the deadline.</span>
+                <b data-countdown data-reload-on-expire="true" data-end-time="{{ (latest_session.bidding_ends_at or latest_session.end_time).isoformat() }}">--:--:--</b>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">Open Sprint</a>
+            </section>
+        {% endif %}
+
+        {% if is_verified and rv %}
+            {% if rv.earned_golden_star %}
+                <section class="sprint-alert sprint-verified">
+                    <strong>⭐ Golden Star Earned!</strong>
+                    <span>You submitted all {{ rv.parse_ids(rv.planned_task_ids)|length }} planned task(s). Bonus points awarded.</span>
+                    <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">View Leaderboard</a>
+                </section>
+            {% else %}
+                <section class="sprint-alert sprint-pending">
+                    <strong>🚫 Penalty Applied</strong>
+                    <span>{{ rv.parse_ids(rv.missing_task_ids)|length }} task(s) not submitted. {{ rv.penalty_points }} points deducted.</span>
+                    <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">View Leaderboard</a>
+                </section>
+            {% endif %}
+        {% elif in_completion %}
+            <section class="sprint-alert sprint-closed">
+                <strong>🔒 Sprint Locked</strong>
+                <span>Your sprint plan is locked. Submit your planned tasks within the completion window.</span>
+                <b data-countdown data-reload-on-expire="true" data-end-time="{{ completion_end_local.isoformat() if completion_end_local else '' }}">--:--:--</b>
+            </section>
+        {% endif %}
+    {% else %}
+        <section class="sprint-alert sprint-closed">
+            <strong>🏁 Elite Sprint Closed</strong>
+            <span>The form opens only when an admin activates a sprint session.</span>
         </section>
-        <section class="content-grid">
+    {% endif %}
+
+    <section class="content-grid">
+        {% if latest_session and bid %}
             <article class="work-panel span-2">
                 <div class="section-title">
                     <div>
                         <p class="eyebrow">{{ "Edit Bid" if bid and not bid.is_locked else "Sprint Form" }}</p>
-                        <h2>{{ active_session.sprint_type|title }} task plan</h2>
+                        <h2>{{ latest_session.sprint_type|title }} task plan</h2>
                     </div>
                     {% if bid and bid.is_locked %}
                         <span class="status-pill">Locked</span>
@@ -37,16 +74,22 @@
                     <div class="locked-notice">
                         <p><strong>🔒 Sprint Bid Locked</strong></p>
                         <p>Your sprint bid was saved on {{ bid.locked_at.strftime("%d %b %Y at %H:%M") if bid.locked_at else "N/A" }}. No further edits are allowed until the sprint ends.</p>
+                        {% if is_verified and rv %}
+                            {% if rv.earned_golden_star %}
+                                <p class="submission-state ready">⭐ Golden Star — all planned tasks submitted.</p>
+                            {% else %}
+                                <p class="submission-state blocked">🚫 Penalty — {{ rv.parse_ids(rv.missing_task_ids)|length }} task(s) missing. {{ rv.penalty_points }} points deducted.</p>
+                            {% endif %}
+                        {% elif in_completion %}
+                            {% set remaining = latest_session.completion_remaining_seconds %}
+                            {% if remaining is not none %}
+                                <p class="submission-state ready">Completion window: {{ "%02d:%02d:%02d"|format(remaining // 3600, (remaining % 3600) // 60, remaining % 60) }} remaining.</p>
+                            {% endif %}
+                        {% endif %}
                     </div>
                     <div class="task-id-grid">
-                        {% for task_id in (bid.daily_tasks or []) %}
-                            <input type="text" value="{{ task_id }}" disabled placeholder="Daily task ID">
-                        {% endfor %}
-                        {% for task_id in (bid.weekly_tasks or []) %}
-                            <input type="text" value="{{ task_id }}" disabled placeholder="Weekly task ID">
-                        {% endfor %}
-                        {% for task_id in (bid.monthly_tasks or []) %}
-                            <input type="text" value="{{ task_id }}" disabled placeholder="Monthly task ID">
+                        {% for task_id in (bid.task_ids or (bid.daily_tasks or []) + (bid.weekly_tasks or []) + (bid.monthly_tasks or [])) %}
+                            <input type="text" value="{{ task_id }}" disabled placeholder="Planned task ID">
                         {% endfor %}
                     </div>
                 {% else %}
@@ -77,25 +120,52 @@
                 <div class="section-title"><div><p class="eyebrow">Live Board</p><h2>Current ranks</h2></div></div>
                 {% include "elite_sprint/_leaderboard.html" %}
             </article>
-        </section>
-    {% else %}
-        <section class="work-panel">
-            <div class="empty-state tall">
-                <strong>Elite Sprint Closed</strong>
-                <span>The form opens only when an admin activates a sprint session.</span>
-            </div>
-        </section>
-        {% if latest_session %}
-        <section class="sprint-alert sprint-closed">
-            <strong>🏁 Latest Sprint: {{ latest_session.sprint_date.strftime("%d %b %Y") }}</strong>
-            <span>Status: {{ "Verified" if latest_session.is_verified else "Awaiting Verification" }} · Type: {{ latest_session.sprint_type|title }}</span>
-            <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">View Leaderboard</a>
-        </section>
+        {% else %}
+            <article class="work-panel span-2">
+                <div class="section-title">
+                    <div>
+                        {% if active_session %}
+                            <p class="eyebrow">Sprint Form</p>
+                            <h2>{{ latest_session.sprint_type|title }} task plan</h2>
+                        {% else %}
+                            <p class="eyebrow">No Active Bid</p>
+                            <h2>You have not planned tasks for this sprint</h2>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if active_session %}
+                    <form class="auth-form sprint-form" method="post" data-sprint-form>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {% set daily_count = 0 %}
+                        {% set weekly_count = 0 %}
+                        {% set monthly_count = 0 %}
+                        {% set daily_tasks = [] %}
+                        {% set weekly_tasks = [] %}
+                        {% set monthly_tasks = [] %}
+                        {% set sections = [("daily", "Daily", daily_count, daily_tasks), ("weekly", "Weekly", weekly_count, weekly_tasks), ("monthly", "Monthly", monthly_count, monthly_tasks)] %}
+                        {% for key, label, count, tasks in sections %}
+                            {% if key in visible_sections %}
+                                <fieldset class="sprint-section" data-task-section="{{ key }}">
+                                    <legend>{{ label }}</legend>
+                                    <label>
+                                        How many {{ key }} tasks are you planning?
+                                        <input type="number" min="0" max="100" name="{{ key }}_count" value="{{ count }}" data-task-count>
+                                    </label>
+                                    <div class="task-id-grid" data-task-inputs></div>
+                                </fieldset>
+                            {% endif %}
+                        {% endfor %}
+                        <button class="primary-btn" type="submit">Save Sprint Bid</button>
+                    </form>
+                {% else %}
+                    <div class="empty-state"><strong>Waiting for the next sprint</strong><span>Your task plan appears here once admin opens a bidding window.</span></div>
+                {% endif %}
+            </article>
+            <article class="work-panel">
+                <div class="section-title"><div><p class="eyebrow">Live Board</p><h2>Current ranks</h2></div></div>
+                {% include "elite_sprint/_leaderboard.html" %}
+            </article>
         {% endif %}
-        <section class="work-panel">
-            <div class="section-title"><div><p class="eyebrow">Leaderboard</p><h2>Elite Sprint Leaderboard</h2></div></div>
-            {% include "elite_sprint/_leaderboard.html" %}
-        </section>
-    {% endif %}
+    </section>
 </main>
 {% endblock %}

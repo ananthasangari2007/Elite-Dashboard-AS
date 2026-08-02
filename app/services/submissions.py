@@ -24,10 +24,10 @@ def can_submit_task_on_date(student_id, task_id, target_date=None):
         return True, None
 
     statuses = {row.status for row in rows}
+    if "approved" in statuses:
+        return False, "You already completed this task today. It will reopen automatically at 12:00 AM."
     if "waiting_approval" in statuses or "pending" in statuses:
         return False, "A pending submission exists for this task today. Please wait for admin review."
-    if "rejected" in statuses:
-        return True, None
     return True, None
 
 
@@ -43,17 +43,8 @@ def submitted_task_ids_for_date(student_id, target_date=None):
 
 
 def has_submitted_task_on_date(student_id, task_id, target_date=None):
-    target_date = target_date or current_submission_date()
-    rows = (
-        Submission.query.filter_by(
-            student_id=student_id,
-            task_id=task_id,
-            submission_date=target_date,
-        )
-        .filter(Submission.status.in_(["waiting_approval", "approved", "pending"]))
-        .all()
-    )
-    return bool(rows)
+    allowed, _ = can_submit_task_on_date(student_id, task_id, target_date)
+    return not allowed
 
 
 def current_daily_streak(student_id):
