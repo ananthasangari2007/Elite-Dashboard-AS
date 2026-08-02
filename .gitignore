@@ -1,0 +1,6 @@
+Elite-Dashboard-main updated/
+__pycache__/
+.venv/
+venv/
+.env
+instance/*.sqlite3
