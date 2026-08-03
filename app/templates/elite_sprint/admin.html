@@ -1,16 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Elite Sprint Bidding | Elite Batch Dashboard{% endblock %}
+{% block title %}Sprint Management | Elite Batch Dashboard{% endblock %}
 {% block body %}
 <main class="dashboard-main">
     <header class="dashboard-header">
         <div>
             <p class="eyebrow">Admin Portal</p>
-            <h1>Elite Sprint Bidding</h1>
+            <h1>Sprint Management</h1>
         </div>
         <div class="header-actions">
             <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
-            <a class="ghost-btn" href="/elite-sprint/">Analytics</a>
-            <a class="ghost-btn" href="/elite-sprint/">Export Excel</a>
         </div>
     </header>
 
@@ -18,114 +16,47 @@
         <article class="work-panel">
             <div class="section-title">
                 <div>
-                    <p class="eyebrow">Open Sprint</p>
-                    <h2>Session window</h2>
+                    <p class="eyebrow">Create Sprint</p>
+                    <h2>Schedule a new sprint</h2>
                 </div>
             </div>
             <form class="auth-form" method="post">
                 {{ form.hidden_tag() }}
-                <label>{{ form.sprint_type.label }} {{ form.sprint_type() }}</label>
                 <label>{{ form.sprint_date.label }} {{ form.sprint_date() }}</label>
                 <label>{{ form.start_time.label }} {{ form.start_time() }}</label>
                 <label>{{ form.end_time.label }} {{ form.end_time() }}</label>
-                <small class="muted-text">Enter your local time ({{ timezone_label }}). The bidding window opens at start time and closes at end time. If the end time is earlier than the start time, it closes on the next day.</small>
-                <button class="primary-btn" type="submit">Open Sprint</button>
+                <small class="muted-text">Only one sprint is allowed per date. After midnight, the old sprint expires and a new one can be created for the next day.</small>
+                <button class="primary-btn" type="submit">Create Sprint</button>
             </form>
         </article>
 
-        <article class="work-panel span-2">
+        {% if today_sprint %}
+        <article class="work-panel">
             <div class="section-title">
                 <div>
-                    <p class="eyebrow">{{ "Active" if active_session else "Latest" }} Session</p>
-                    <h2>{{ "Sprint countdown" if active_session else (latest_session.status|title if latest_session else "Elite Sprint Closed") }}</h2>
+                    <p class="eyebrow">Today's Sprint</p>
+                    <h2>{{ today_sprint.sprint_date.strftime("%d %b %Y") }}</h2>
                 </div>
-                {% if latest_session %}
-                    <div class="header-actions">
-                        {% if latest_session.verified %}
-                            <span class="status-pill">Verified</span>
-                            <span class="status-pill">{{ latest_session.verification_mode|title }}</span>
-                            <span class="status-pill">Timer Stopped</span>
-                        {% else %}
-                            <span class="status-pill">{{ latest_session.status|title }}</span>
-                            <form method="post" action="/elite-sprint/" data-confirm="Run sprint verification now? This stops the completion timer and is irreversible.">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <input type="hidden" name="session_id" value="{{ latest_session.id }}">
-                                <button class="primary-btn" type="submit">Run Sprint Verification</button>
-                            </form>
-                        {% endif %}
-                        <a class="ghost-btn" href="/elite-sprint/">View Verification Results</a>
-                    </div>
-                {% endif %}
+                <span class="status-pill">{{ "Active" if today_sprint.start_time <= now_time and now_time < today_sprint.end_time else "Scheduled" }}</span>
             </div>
-            {% if latest_session %}
-                <div class="sprint-status">
-                    {% if latest_session.verified %}
-                        <div class="countdown-timer verified-state">
-                            <span class="countdown-label">Verification complete</span>
-                            <b class="countdown-value">--:--:--</b>
-                        </div>
-                    {% elif latest_session.completion_ends_at %}
-                        <div class="countdown-timer" data-countdown data-end-time="{{ latest_session.completion_ends_at.isoformat() if latest_session.completion_ends_at else '' }}">
-                            <span class="countdown-label">Completion window ends</span>
-                            <b class="countdown-value">--:--:--</b>
-                        </div>
-                    {% elif active_session %}
-                        <div class="countdown-timer" data-countdown data-reload-on-expire="true" data-end-time="{{ (latest_session.bidding_ends_at or latest_session.end_time).isoformat() if latest_session else '' }}">
-                            <span class="countdown-label">Bidding closes in</span>
-                            <b class="countdown-value">--:--:--</b>
-                        </div>
-                    {% else %}
-                        <div class="countdown-timer">
-                            <span class="countdown-label">Bidding closed</span>
-                            <b class="countdown-value">--:--:--</b>
-                        </div>
-                    {% endif %}
-
-                    <span class="status-pill">
-                        {% if latest_session.verified %}
-                            ⭐ Verified
-                        {% elif latest_session.completion_ends_at %}
-                            ⏳ In completion window
-                        {% elif active_session %}
-                            ⚡ Bidding open
-                        {% else %}
-                            🏁 Bidding closed
-                        {% endif %}
-                    </span>
-
-                    <small>
-                        {{ latest_session.sprint_type|title }} Sprint · {{ latest_session.sprint_date.strftime("%d %b %Y") }}
-                        · Bidding: {{ latest_start_local.strftime("%H:%M") if latest_start_local else "N/A" }} - {{ latest_end_local.strftime("%H:%M") if latest_end_local else "N/A" }} {{ timezone_label }}
-                        {% if latest_session.completion_ends_at %}
-                         · Completion ends: {{ completion_end_local.strftime("%H:%M") if completion_end_local else "N/A" }} {{ timezone_label }}
-                        {% endif %}
-                        {% if latest_session.verified_at %}
-                         · Verified {{ latest_session.verified_at.strftime("%H:%M") }} {{ timezone_label }} via {{ latest_session.verification_mode|title }}
-                        {% endif %}
-                    </small>
-                </div>
-            {% else %}
-                <div class="empty-state"><strong>No Sprint Session</strong><span>Open the first sprint when bidding should begin.</span></div>
-            {% endif %}
+            <div class="sprint-status">
+                <p><strong>Start:</strong> {{ today_sprint.start_time.strftime("%H:%M") }}</p>
+                <p><strong>End:</strong> {{ today_sprint.end_time.strftime("%H:%M") }}</p>
+                <p><strong>Locked Students:</strong> {{ sprint_stats.locked_students }}</p>
+                <p><strong>Verified Students:</strong> {{ sprint_stats.verified_students }}</p>
+            </div>
         </article>
-
-        <article class="metric-card"><span>Total Participants</span><strong>{{ metrics.participants }}</strong><small>students submitted</small></article>
-        <article class="metric-card"><span>Total Daily Bids</span><strong>{{ metrics.daily }}</strong><small>daily tasks planned</small></article>
-        <article class="metric-card"><span>Total Weekly Bids</span><strong>{{ metrics.weekly }}</strong><small>weekly tasks planned</small></article>
-        <article class="metric-card"><span>Total Monthly Bids</span><strong>{{ metrics.monthly }}</strong><small>monthly tasks planned</small></article>
-        <article class="metric-card"><span>Highest Bidder</span><strong class="metric-text">{{ metrics.highest_bidder }}</strong><small>top sprint total</small></article>
-        <article class="metric-card"><span>Participation</span><strong>{{ metrics.participation }}%</strong><small>of student accounts</small></article>
-
-        <article class="work-panel span-2">
+        {% else %}
+        <article class="work-panel">
             <div class="section-title">
                 <div>
-                    <p class="eyebrow">Sprint Board</p>
-                    <h2>Elite Sprint Leaderboard</h2>
+                    <p class="eyebrow">Today's Sprint</p>
+                    <h2>No Sprint Scheduled</h2>
                 </div>
-                <a class="ghost-btn" href="/elite-sprint/">Open Board</a>
             </div>
-            {% include "elite_sprint/_leaderboard.html" %}
+            <div class="empty-state"><strong>No Sprint for Today</strong><span>Create a sprint above to start bidding.</span></div>
         </article>
+        {% endif %}
     </section>
 </main>
 {% endblock %}

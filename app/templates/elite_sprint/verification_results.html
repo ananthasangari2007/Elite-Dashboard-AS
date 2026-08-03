@@ -8,13 +8,11 @@
             <h1>Sprint {{ session.id }} — {{ session.sprint_date.strftime("%d %b %Y") }}</h1>
         </div>
         <div class="header-actions">
-            <span class="status-pill">{{ session.sprint_type|title }} Sprint</span>
-            {% if session.verified %}
-                <span class="status-pill">Verified via {{ session.verification_mode|title }} at {{ session.verified_at.strftime("%H:%M") if session.verified_at else "N/A" }} {{ timezone_label }}</span>
+            <span class="status-pill">Verified at {{ session.verified_at.strftime("%H:%M") if session.verified_at else "N/A" }} {{ timezone_label }}</span>
             {% else %}
                 <span class="status-pill">Pending</span>
             {% endif %}
-            <a class="ghost-btn" href="/elite-sprint/">Sprint Board</a>
+            <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Sprint Board</a>
         </div>
     </header>
 

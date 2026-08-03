@@ -5,7 +5,6 @@ from flask_login import current_user
 
 from app import db
 from app.models import Submission, Task
-from app.services.elite_sprint import get_submission_sprint_session
 from app.services.points import record_award
 from app.services.submissions import can_submit_task_on_date, current_submission_date
 from app.utils.auth import role_required
@@ -46,9 +45,6 @@ def submit(task_id):
             submission.proof_url = save_uploaded_proof_files(submitted_files, limit=10)
             submission.status = "waiting_approval"
             submission.submitted_at = datetime.utcnow()
-            linked_session = get_submission_sprint_session(current_user.id)
-            if linked_session:
-                submission.sprint_session_id = linked_session.id
 
             if not submission.description:
                 raise ValueError("Proof description is required.")

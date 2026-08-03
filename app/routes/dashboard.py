@@ -5,8 +5,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app import db
-from app.models import PointTransaction, Submission, Task, User
-from app.services.elite_sprint import get_active_session, latest_session, sprint_leaderboard, sprint_metrics
+from app.models import EliteSprintBid, EliteSprintSession, PointTransaction, Submission, Task, User
+from app.services.elite_sprint import get_sprint_metrics, get_today_sprint, process_expired_sprint_verifications
 from app.services.points import leaderboard, monthly_points_query, overall_points_query, total_points_awarded
 from app.services.submissions import current_daily_streak, dashboard_submission_analytics, top_daily_streaks
 
@@ -85,30 +85,9 @@ def chart_data():
 @dashboard_bp.route("/")
 @login_required
 def home():
-    active_sprint = None
-    try:
-        latest_sprint = latest_session()
-        sprint_board = sprint_leaderboard(latest_sprint.id, limit=5) if latest_sprint else []
-        sprint_stats = sprint_metrics(latest_sprint) if latest_sprint else {
-            "participants": 0,
-            "daily": 0,
-            "weekly": 0,
-            "monthly": 0,
-            "highest_bidder": "Unavailable",
-            "participation": 0,
-        }
-    except Exception as e:
-        print(f"Dashboard sprint widgets disabled: {e}")
-        latest_sprint = None
-        sprint_board = []
-        sprint_stats = {
-            "participants": 0,
-            "daily": 0,
-            "weekly": 0,
-            "monthly": 0,
-            "highest_bidder": "Unavailable",
-            "participation": 0,
-        }
+    process_expired_sprint_verifications()
+    today_sprint = get_today_sprint()
+    sprint_stats = get_sprint_metrics(today_sprint)
     active_tasks = Task.query.order_by(Task.created_at.desc()).limit(5).all()
     leaderboard_rows = leaderboard(limit=10)
     pending_approvals = Submission.query.filter_by(status="waiting_approval").count()
@@ -151,6 +130,23 @@ def home():
             .limit(5)
             .all()
         )
+        student_sprint_status = None
+        if today_sprint:
+            bid = EliteSprintBid.query.filter_by(
+                session_id=today_sprint.id,
+                student_id=current_user.id,
+            ).first()
+            if bid:
+                if bid.is_locked and not bid.is_verified:
+                    student_sprint_status = "Verification Pending"
+                elif bid.is_locked and bid.is_verified and bid.has_golden_star:
+                    student_sprint_status = "Golden Star Earned"
+                elif bid.is_locked and bid.is_verified and not bid.has_golden_star:
+                    student_sprint_status = "Penalty Applied"
+                elif not bid.is_locked:
+                    student_sprint_status = "Sprint Locked"
+        else:
+            student_sprint_status = None
     else:
         student_count = User.query.filter_by(role="student").count()
         task_count = Task.query.count()
@@ -174,13 +170,13 @@ def home():
             or 0
         )
         performance_rows = leaderboard(limit=10)
+        student_sprint_status = None
 
     return render_template(
         "dashboard/home.html",
-        active_sprint=active_sprint,
-        latest_sprint=latest_sprint,
-        sprint_board=sprint_board,
+        today_sprint=today_sprint,
         sprint_stats=sprint_stats,
+        student_sprint_status=student_sprint_status,
         submission_analytics=submission_analytics,
         streak_rows=streak_rows,
         daily_streak=daily_streak,

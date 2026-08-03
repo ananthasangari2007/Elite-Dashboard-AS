@@ -83,9 +83,12 @@ def register_profile_guard(app):
 def register_sprint_status_guard(app):
     @app.before_request
     def close_elapsed_sprint_sessions():
-        from app.services.elite_sprint import close_expired_sprints
+        from app.services.elite_sprint import process_expired_sprint_verifications
 
-        close_expired_sprints()
+        try:
+            process_expired_sprint_verifications()
+        except Exception:
+            db.session.rollback()
 
 
 def get_initial_admin_password():
