@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import safe_time %}
 {% block title %}Sprint Management | Elite Batch Dashboard{% endblock %}
 {% block body %}
 <main class="dashboard-main">
@@ -38,12 +39,21 @@
                     <h2>{{ today_sprint.sprint_date.strftime("%d %b %Y") }}</h2>
                 </div>
                 <span class="status-pill">
-                    {{ "Active" if today_sprint and today_sprint.status == "active" else "Scheduled" }}
+                    {% set now_dt = current_time %}
+                    {% if today_sprint and today_sprint.start_time and today_sprint.end_time %}
+                        {% if today_sprint.start_datetime <= now_dt and now_dt < today_sprint.end_datetime %}
+                            <span class="status-pill active">Active</span>
+                        {% else %}
+                            <span class="status-pill scheduled">Scheduled</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="status-pill closed">Closed</span>
+                    {% endif %}
                 </span>
             </div>
             <div class="sprint-status">
-                <p><strong>Start:</strong> {{ sprint_start_time.strftime("%H:%M") }}</p>
-                <p><strong>End:</strong> {{ sprint_end_time.strftime("%H:%M") }}</p>
+                <p><strong>Start:</strong> {{ safe_time(today_sprint.start_time) }}</p>
+                <p><strong>End:</strong> {{ safe_time(today_sprint.end_time) }}</p>
                 <p><strong>Locked Students:</strong> {{ sprint_stats.locked_students }}</p>
                 <p><strong>Verified Students:</strong> {{ sprint_stats.verified_students }}</p>
             </div>

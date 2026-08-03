@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import safe_time %}
 {% block title %}Elite Sprint | Elite Batch Dashboard{% endblock %}
 {% block body %}
 <main class="dashboard-main">
@@ -12,28 +13,28 @@
         </div>
     </header>
 
-    {% if sprint_open %}
+    {% if bid and bid.is_locked %}
+        <section class="sprint-alert sprint-closed">
+            <strong>🔒 Sprint Locked</strong>
+            <p>Sprint locked until the next sprint session.</p>
+            {% if bid.verification_due_at %}
+                <p>Task submission deadline: {{ bid.verification_due_at.strftime("%H:%M:%S") }}</p>
+                <b data-countdown data-end-time="{{ bid.verification_due_at.isoformat() }}">--:--:--</b>
+            {% endif %}
+        </section>
+    {% elif sprint_open %}
         {% if today_sprint %}
             {% set start_dt = today_sprint.start_datetime %}
             {% set end_dt = today_sprint.end_datetime %}
             <section class="sprint-alert glow-badge">
                 <strong>⚡ Elite Sprint Bidding is OPEN!</strong>
-                <span>Sprint for {{ today_sprint.sprint_date.strftime("%d %b %Y") }}. Bidding closes at {{ today_sprint.end_time.strftime("%H:%M") }}.</span>
+                <span>Sprint for {{ today_sprint.sprint_date.strftime("%d %b %Y") }}. Bidding closes at {{ safe_time(today_sprint.end_time) }}.</span>
                 <b data-countdown data-reload-on-expire="true" data-end-time="{{ end_dt.isoformat() }}">--:--:--</b>
             </section>
         {% endif %}
 
         {% if bid %}
-            {% if bid.is_locked %}
-                <section class="sprint-alert sprint-closed">
-                    <strong>🔒 Sprint Locked</strong>
-                    <p>Your sprint bid has been saved and is now locked.</p>
-                    {% if bid.verification_due_at %}
-                        <p><strong>Verification due by:</strong> {{ bid.verification_due_at.strftime("%d %b %Y at %H:%M") }}</p>
-                        <b data-countdown data-end-time="{{ bid.verification_due_at.isoformat() }}">--:--:--</b>
-                    {% endif %}
-                </section>
-            {% else %}
+            {% if not bid.is_locked %}
                 <section class="sprint-alert sprint-pending">
                     <strong>Sprint Form</strong>
                     <p>Submit your task plan below. Each category requires at least 2 task IDs.</p>

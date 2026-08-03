@@ -1,6 +1,16 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 
 from app import db
+
+
+def _to_time(value):
+    if value is None:
+        return time(0, 0)
+    if isinstance(value, time):
+        return value
+    if isinstance(value, datetime):
+        return value.time()
+    return value
 
 
 class EliteSprintSession(db.Model):
@@ -14,11 +24,11 @@ class EliteSprintSession(db.Model):
 
     @property
     def start_datetime(self):
-        return datetime.combine(self.sprint_date, self.start_time)
+        return datetime.combine(self.sprint_date, _to_time(self.start_time))
 
     @property
     def end_datetime(self):
-        return datetime.combine(self.sprint_date, self.end_time)
+        return datetime.combine(self.sprint_date, _to_time(self.end_time))
 
     @property
     def is_active(self):

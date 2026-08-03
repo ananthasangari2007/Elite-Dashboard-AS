@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros.html" import safe_time %}
 {% block title %}Dashboard | Elite Batch Dashboard{% endblock %}
 {% block body %}
 <div class="dashboard-layout">
@@ -74,7 +75,7 @@
         {% if current_user.role == "student" and today_sprint %}
             <section class="sprint-alert glow-badge">
                 <strong>⚡ Elite Sprint Bidding is OPEN!</strong>
-                <span>Sprint for {{ today_sprint.sprint_date.strftime("%d %b %Y") }}. Bidding closes at {{ today_sprint.end_time.strftime("%H:%M") }}.</span>
+                <span>Sprint for {{ today_sprint.sprint_date.strftime("%d %b %Y") }}. Bidding closes at {{ safe_time(today_sprint.end_time) }}.</span>
                 <b data-countdown data-reload-on-expire="true" data-end-time="{{ today_sprint.end_datetime.isoformat() }}">--:--:--</b>
                 <a class="ghost-btn" href="/elite-sprint/student">Open Sprint</a>
             </section>
@@ -88,7 +89,7 @@
         {% if current_user.role == "admin" and today_sprint %}
             <section class="sprint-alert glow-badge">
                 <strong>⚡ Today's Sprint is Active</strong>
-                <span>{{ today_sprint.sprint_date.strftime("%d %b %Y") }} · {{ today_sprint.start_time.strftime("%H:%M") }} - {{ today_sprint.end_time.strftime("%H:%M") }}</span>
+                <span>{{ today_sprint.sprint_date.strftime("%d %b %Y") }} · {{ safe_time(today_sprint.start_time) }} - {{ safe_time(today_sprint.end_time) }}</span>
                 <a class="ghost-btn" href="/elite-sprint/admin">Manage Sprint</a>
             </section>
         {% elif current_user.role == "admin" %}
@@ -229,7 +230,7 @@
                     <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') if current_user.role == 'admin' else url_for('elite_sprint.student') }}">View</a>
                 </div>
                 <div class="leaderboard">
-                    <div class="leader-row"><span>📅</span><div><strong>{{ today_sprint.sprint_date.strftime("%d %b %Y") }}</strong><small>{{ today_sprint.start_time.strftime("%H:%M") }} - {{ today_sprint.end_time.strftime("%H:%M") }}</small></div></div>
+                    <div class="leader-row"><span>📅</span><div><strong>{{ today_sprint.sprint_date.strftime("%d %b %Y") }}</strong><small>{{ safe_time(today_sprint.start_time) }} - {{ safe_time(today_sprint.end_time) }}</small></div></div>
                     <div class="leader-row"><span>🔒</span><div><strong>{{ sprint_stats.locked_students }}</strong><small>locked bids</small></div></div>
                     <div class="leader-row"><span>✅</span><div><strong>{{ sprint_stats.verified_students }}</strong><small>verified</small></div></div>
                 </div>

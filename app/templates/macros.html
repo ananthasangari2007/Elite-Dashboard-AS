@@ -1,0 +1,4 @@
+{- safe_time macro -}
+{%- macro safe_time(value, fmt="%H:%M") -%}
+    {{ value.strftime(fmt) if value else "--:--" }}
+{%- endmacro -%}

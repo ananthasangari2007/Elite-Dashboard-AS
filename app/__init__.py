@@ -30,11 +30,16 @@ def create_app(config_class=Config):
 
         if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgresql"):
             repairs = [
+                "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS locked_at TIMESTAMP",
                 "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS verification_due_at TIMESTAMP",
                 "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE",
                 "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP",
+                "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS has_golden_star BOOLEAN DEFAULT FALSE",
                 "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS penalty_points INTEGER DEFAULT 0",
                 "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS penalty_reason TEXT",
+                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS has_active_sprint_penalty BOOLEAN DEFAULT FALSE',
+                'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS golden_stars INTEGER DEFAULT 0',
             ]
 
             for sql in repairs:

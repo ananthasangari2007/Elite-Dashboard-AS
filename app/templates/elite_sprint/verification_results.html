@@ -1,17 +1,15 @@
 {% extends "base.html" %}
+{% from "macros.html" import safe_time %}
 {% block title %}Verification Results | Elite Batch Dashboard{% endblock %}
 {% block body %}
 <main class="dashboard-main">
     <header class="dashboard-header">
         <div>
             <p class="eyebrow">Verification Results</p>
-            <h1>Sprint {{ session.id }} — {{ session.sprint_date.strftime("%d %b %Y") }}</h1>
+            <h1>Sprint {{ session.id if session else "N/A" }} — {{ session.sprint_date.strftime("%d %b %Y") if session else "No session selected" }}</h1>
         </div>
         <div class="header-actions">
-            <span class="status-pill">Verified at {{ session.verified_at.strftime("%H:%M") if session.verified_at else "N/A" }} {{ timezone_label }}</span>
-            {% else %}
-                <span class="status-pill">Pending</span>
-            {% endif %}
+            <span class="status-pill">Verified at {{ safe_time(session.verified_at) if session and session.verified_at else "N/A" }} {{ timezone_label }}</span>
             <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Sprint Board</a>
         </div>
     </header>
@@ -42,7 +40,7 @@
         {% else %}
             <div class="empty-state">
                 <strong>No Verification Results</strong>
-                {% if session.verified %}
+                {% if session and session.verified %}
                     <span>This sprint was verified but has no recorded results.</span>
                 {% else %}
                     <span>Run sprint verification to generate results for this session.</span>

@@ -13,12 +13,16 @@ from app.models import (
     EliteSprintBid,
     EliteSprintBidTask,
     EliteSprintSession,
+    SprintVerificationResult,
     Task,
+    User,
 )
 from app.services.elite_sprint import (
+    VERIFICATION_WINDOW_HOURS,
     create_sprint,
     get_sprint_for_date,
     get_today_sprint,
+    get_sprint_leaderboard,
     process_expired_sprint_verifications,
 )
 
@@ -75,7 +79,6 @@ def admin():
 
     today = utc_now().date()
     today_sprint = get_sprint_for_date(today)
-    now_time = utc_now().time()
     form = SprintCreateForm()
     sprint_stats = {"locked_students": 0, "verified_students": 0}
     if today_sprint:
@@ -87,7 +90,7 @@ def admin():
         "elite_sprint/admin.html",
         form=form,
         today_sprint=today_sprint,
-        now_time=now_time,
+        current_time=datetime.utcnow(),
         sprint_stats=sprint_stats,
         timezone_label=APP_TIMEZONE,
     )
@@ -119,7 +122,7 @@ def admin_create_sprint():
                 "elite_sprint/admin.html",
                 form=form,
                 today_sprint=today_sprint,
-                now_time=utc_now().time(),
+                current_time=datetime.utcnow(),
                 sprint_stats={"locked_students": 0, "verified_students": 0},
                 timezone_label=APP_TIMEZONE,
             )
@@ -138,7 +141,7 @@ def admin_create_sprint():
         "elite_sprint/admin.html",
         form=form,
         today_sprint=today_sprint,
-        now_time=utc_now().time(),
+        current_time=datetime.utcnow(),
         sprint_stats={"locked_students": 0, "verified_students": 0},
         timezone_label=APP_TIMEZONE,
     )
@@ -158,6 +161,7 @@ def student():
             "elite_sprint/student.html",
             sprint_open=False,
             message="Sprint bidding is currently closed.",
+            current_time=datetime.utcnow(),
         )
 
     bid = EliteSprintBid.query.filter_by(
@@ -172,6 +176,7 @@ def student():
             bid=bid,
             today_sprint=today_sprint,
             message="Sprint locked until the next sprint session.",
+            current_time=datetime.utcnow(),
         )
 
     return render_template(
@@ -179,6 +184,7 @@ def student():
         sprint_open=True,
         today_sprint=today_sprint,
         bid=bid,
+        current_time=datetime.utcnow(),
     )
 
 
@@ -259,12 +265,13 @@ def student_submit():
         existing_bid.locked_at = datetime.utcnow()
         existing_bid.verification_due_at = existing_bid.locked_at + timedelta(hours=VERIFICATION_WINDOW_HOURS)
     else:
+        now = datetime.utcnow()
         bid = EliteSprintBid(
             session_id=today_sprint.id,
             student_id=current_user.id,
             is_locked=True,
-            locked_at=datetime.utcnow(),
-            verification_due_at=datetime.utcnow() + timedelta(hours=VERIFICATION_WINDOW_HOURS),
+            locked_at=now,
+            verification_due_at=now + timedelta(hours=VERIFICATION_WINDOW_HOURS),
         )
         db.session.add(bid)
         db.session.flush()
@@ -280,3 +287,48 @@ def student_submit():
     db.session.commit()
     flash("Sprint locked until the next sprint session.", "success")
     return redirect(url_for("elite_sprint.student"))
+
+
+@elite_sprint_bp.route("/leaderboard")
+@login_required
+def leaderboard():
+    process_expired_sprint_verifications()
+    rows = get_sprint_leaderboard()
+    return render_template(
+        "elite_sprint/leaderboard.html",
+        leaderboard=rows,
+        timezone_label=APP_TIMEZONE,
+    )
+
+
+@elite_sprint_bp.route("/verify")
+@login_required
+def verify():
+    process_expired_sprint_verifications()
+    if current_user.role != "admin":
+        flash("Access denied.", "error")
+        return redirect(url_for("dashboard.home"))
+
+    session_id = request.args.get("session_id", type=int)
+    if session_id:
+        session_obj = EliteSprintSession.query.get_or_404(session_id)
+    else:
+        session_obj = (
+            EliteSprintSession.query.order_by(EliteSprintSession.sprint_date.desc())
+            .first()
+        )
+
+    results = []
+    if session_obj:
+        results = (
+            SprintVerificationResult.query.filter_by(session_id=session_obj.id)
+            .order_by(SprintVerificationResult.verified_at.desc())
+            .all()
+        )
+
+    return render_template(
+        "elite_sprint/verification_results.html",
+        session=session_obj,
+        results=results,
+        timezone_label=APP_TIMEZONE,
+    )
