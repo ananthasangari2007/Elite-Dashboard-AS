@@ -23,6 +23,16 @@ def create_app(config_class=Config):
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
+
+    with app.app_context():
+        from app.utils.postgres_auto_fix import repair_postgres_schema
+
+        try:
+            repair_postgres_schema()
+            print("PostgreSQL schema auto-repair completed.")
+        except Exception as exc:
+            print(f"PostgreSQL schema auto-repair failed: {exc}")
+
     migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = "auth.choose_portal"
@@ -52,12 +62,6 @@ def create_app(config_class=Config):
     register_cli(app)
     register_sprint_status_guard(app)
     register_profile_guard(app)
-
-    with app.app_context():
-        db.create_all()
-        from app.utils.postgres_auto_fix import repair_postgres_schema
-
-        repair_postgres_schema()
 
     return app
 
