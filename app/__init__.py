@@ -7,6 +7,7 @@ from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
+from sqlalchemy import text
 
 from config import Config
 
@@ -26,13 +27,25 @@ def create_app(config_class=Config):
 
     with app.app_context():
         db.create_all()
-        from app.utils.postgres_auto_fix import repair_postgres_schema
 
-        try:
-            repair_postgres_schema()
+        if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgresql"):
+            repairs = [
+                "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS verification_due_at TIMESTAMP",
+                "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE",
+                "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP",
+                "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS penalty_points INTEGER DEFAULT 0",
+                "ALTER TABLE elite_sprint_bid ADD COLUMN IF NOT EXISTS penalty_reason TEXT",
+            ]
+
+            for sql in repairs:
+                try:
+                    db.session.execute(text(sql))
+                    db.session.commit()
+                except Exception as exc:
+                    db.session.rollback()
+                    print(f"Schema repair skipped: {exc}")
+
             print("PostgreSQL schema auto-repair completed.")
-        except Exception as exc:
-            print(f"PostgreSQL schema auto-repair failed: {exc}")
 
     migrate.init_app(app, db)
     login_manager.init_app(app)
