@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func
@@ -30,17 +30,47 @@ def utc_now():
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+def _to_time(value):
+    if value is None:
+        return time(0, 0)
+
+    if isinstance(value, time):
+        return value
+
+    if isinstance(value, datetime):
+        return value.time()
+
+    return value
+
+
 def get_today_sprint():
-    today = utc_now().date()
-    session = EliteSprintSession.query.filter_by(sprint_date=today).first()
+    today = date.today()
+    session = (
+        EliteSprintSession.query
+        .filter(EliteSprintSession.sprint_date == today)
+        .first()
+    )
+
     if not session:
         return None
-    now = utc_now()
-    start_dt = datetime.combine(session.sprint_date, session.start_time)
-    end_dt = datetime.combine(session.sprint_date, session.end_time)
-    if start_dt <= now < end_dt:
-        return session
-    return None
+
+    start_time = _to_time(session.start_time)
+    end_time = _to_time(session.end_time)
+
+    start_dt = datetime.combine(session.sprint_date, start_time)
+    end_dt = datetime.combine(session.sprint_date, end_time)
+
+    now = datetime.utcnow()
+
+    if start_dt <= now <= end_dt:
+        session.status = "active"
+    elif now > end_dt:
+        session.status = "closed"
+    else:
+        session.status = "scheduled"
+
+    db.session.commit()
+    return session
 
 
 def get_sprint_for_date(sprint_date):
@@ -78,7 +108,7 @@ def process_expired_sprint_verifications():
             if not bid.session:
                 continue
             session = bid.session
-            sprint_end = datetime.combine(session.sprint_date, session.end_time)
+            sprint_end = datetime.combine(session.sprint_date, _to_time(session.end_time))
             if now < sprint_end:
                 continue
             _verify_single_bid(bid)
