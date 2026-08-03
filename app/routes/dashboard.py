@@ -6,7 +6,7 @@ from sqlalchemy import func
 
 from app import db
 from app.models import PointTransaction, Submission, Task, User
-from app.services.elite_sprint import get_active_session, latest_session as get_latest_sprint, sprint_leaderboard
+from app.services.elite_sprint import get_active_session, latest_session, sprint_leaderboard, sprint_metrics
 from app.services.points import leaderboard, monthly_points_query, overall_points_query, total_points_awarded
 from app.services.submissions import current_daily_streak, dashboard_submission_analytics, top_daily_streaks
 
@@ -85,8 +85,30 @@ def chart_data():
 @dashboard_bp.route("/")
 @login_required
 def home():
-    active_sprint = get_active_session()
-    latest_sprint = active_sprint or get_latest_sprint()
+    active_sprint = None
+    try:
+        latest_sprint = latest_session()
+        sprint_board = sprint_leaderboard(latest_sprint.id, limit=5) if latest_sprint else []
+        sprint_stats = sprint_metrics(latest_sprint) if latest_sprint else {
+            "participants": 0,
+            "daily": 0,
+            "weekly": 0,
+            "monthly": 0,
+            "highest_bidder": "Unavailable",
+            "participation": 0,
+        }
+    except Exception as e:
+        print(f"Dashboard sprint widgets disabled: {e}")
+        latest_sprint = None
+        sprint_board = []
+        sprint_stats = {
+            "participants": 0,
+            "daily": 0,
+            "weekly": 0,
+            "monthly": 0,
+            "highest_bidder": "Unavailable",
+            "participation": 0,
+        }
     active_tasks = Task.query.order_by(Task.created_at.desc()).limit(5).all()
     leaderboard_rows = leaderboard(limit=10)
     pending_approvals = Submission.query.filter_by(status="waiting_approval").count()
@@ -152,13 +174,13 @@ def home():
             or 0
         )
         performance_rows = leaderboard(limit=10)
-    sprint_board = sprint_leaderboard(latest_sprint.id, limit=5) if latest_sprint else []
 
     return render_template(
         "dashboard/home.html",
         active_sprint=active_sprint,
         latest_sprint=latest_sprint,
         sprint_board=sprint_board,
+        sprint_stats=sprint_stats,
         submission_analytics=submission_analytics,
         streak_rows=streak_rows,
         daily_streak=daily_streak,
