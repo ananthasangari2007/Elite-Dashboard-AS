@@ -53,6 +53,12 @@ def create_app(config_class=Config):
     register_sprint_status_guard(app)
     register_profile_guard(app)
 
+    with app.app_context():
+        db.create_all()
+        from app.utils.postgres_auto_fix import repair_postgres_schema
+
+        repair_postgres_schema()
+
     return app
 
 
