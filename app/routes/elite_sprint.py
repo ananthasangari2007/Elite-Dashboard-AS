@@ -77,6 +77,29 @@ def close_expired_sprints():
     return closed_any
 
 
+def ensure_active_session():
+    active = get_active_session()
+    if active:
+        return active
+    now = utc_now()
+    sprint_date = now.date()
+    bidding_start = now
+    bidding_end = now + timedelta(days=7)
+    session = EliteSprintSession(
+        sprint_date=sprint_date,
+        sprint_type="overall",
+        start_time=bidding_start,
+        end_time=bidding_end,
+        bidding_starts_at=bidding_start,
+        bidding_ends_at=bidding_end,
+        status="active",
+        created_by=0,
+    )
+    db.session.add(session)
+    db.session.commit()
+    return session
+
+
 def get_active_session():
     close_expired_sprints()
     now = utc_now()
@@ -390,6 +413,7 @@ class SprintSessionForm(FlaskForm):
 @elite_sprint_bp.route("/")
 @login_required
 def index():
+    ensure_active_session()
     latest = latest_session()
     active = get_active_session()
     if current_user.role == "admin":
