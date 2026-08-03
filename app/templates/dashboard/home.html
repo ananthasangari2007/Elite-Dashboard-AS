@@ -24,7 +24,7 @@
                 <a href="{{ url_for('exports.excel') }}">Reports</a>
             {% else %}
                 <a href="{{ url_for('tasks.index') }}">Tasks</a>
-                <a href="{{ url_for('elite_sprint.student') }}">Elite Sprint Bidding</a>
+                <a href="/elite-sprint/">Elite Sprint Bidding</a>
                 <a href="{{ url_for('submissions.status') }}">Task Status</a>
                 <a href="{{ url_for('profile.edit') }}">Profile</a>
                 <a href="{{ url_for('support.contact') }}">Contact Support</a>
@@ -53,7 +53,7 @@
                         <button class="ghost-btn" type="submit">Export Daily Report</button>
                     </form>
                 {% else %}
-                    <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">Sprint</a>
+                    <a class="ghost-btn" href="/elite-sprint/">Sprint</a>
                     <a class="ghost-btn" href="{{ url_for('profile.edit') }}">Profile</a>
                     <a class="ghost-btn" href="{{ url_for('support.contact') }}">Support</a>
                 {% endif %}
@@ -76,13 +76,13 @@
                 <strong>⚡ Elite Sprint Bidding is OPEN now!</strong>
                 <span>Submit your sprint plan before the deadline.</span>
                 <b data-countdown data-reload-on-expire="true" data-end-time="{{ active_sprint.end_time.isoformat() }}">--:--:--</b>
-                <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">Open Sprint</a>
+                <a class="ghost-btn" href="/elite-sprint/">Open Sprint</a>
             </section>
         {% elif current_user.role == "student" and latest_sprint %}
             <section class="sprint-alert sprint-closed">
                 <strong>🏁 Elite Sprint Bidding is Closed</strong>
                 <span>The latest sprint on {{ latest_sprint.sprint_date.strftime("%d %b %Y") }} is {{ "verified" if latest_sprint.is_verified else "awaiting verification" }}.</span>
-                <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">View Details</a>
+                <a class="ghost-btn" href="/elite-sprint/">View Details</a>
             </section>
         {% endif %}
         {% if current_user.role == "admin" and active_sprint and not active_sprint.is_verified %}
@@ -233,7 +233,7 @@
                         <p class="eyebrow">Elite Sprint</p>
                         <h2>{{ "Live sprint leaderboard" if active_sprint else "Latest sprint leaderboard" }}</h2>
                     </div>
-                    <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">View</a>
+                    <a class="ghost-btn" href="/elite-sprint/">View</a>
                 </div>
                 <div class="leaderboard">
                     {% if sprint_board %}

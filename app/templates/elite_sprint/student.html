@@ -9,7 +9,7 @@
         </div>
         <div class="header-actions">
             <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
-            <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">Leaderboard</a>
+            <a class="ghost-btn" href="/elite-sprint/">Leaderboard</a>
         </div>
     </header>
 
@@ -24,7 +24,7 @@
                 <strong>⚡ Elite Sprint Bidding is OPEN now!</strong>
                 <span>{{ latest_session.sprint_type|title }} sprint. Submit your sprint plan before the deadline.</span>
                 <b data-countdown data-reload-on-expire="true" data-end-time="{{ (latest_session.bidding_ends_at or latest_session.end_time).isoformat() }}">--:--:--</b>
-                <a class="ghost-btn" href="{{ url_for('elite_sprint.student') }}">Open Sprint</a>
+                <a class="ghost-btn" href="/elite-sprint/">Open Sprint</a>
             </section>
         {% endif %}
 
@@ -33,13 +33,13 @@
                 <section class="sprint-alert sprint-verified">
                     <strong>⭐ Golden Star Earned!</strong>
                     <span>You submitted all {{ rv.parse_ids(rv.planned_task_ids)|length }} planned task(s). Bonus points awarded.</span>
-                    <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">View Leaderboard</a>
+                    <a class="ghost-btn" href="/elite-sprint/">View Leaderboard</a>
                 </section>
             {% else %}
                 <section class="sprint-alert sprint-pending">
                     <strong>🚫 Penalty Applied</strong>
                     <span>{{ rv.parse_ids(rv.missing_task_ids)|length }} task(s) not submitted. {{ rv.penalty_points }} points deducted.</span>
-                    <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">View Leaderboard</a>
+                    <a class="ghost-btn" href="/elite-sprint/">View Leaderboard</a>
                 </section>
             {% endif %}
         {% elif in_completion %}

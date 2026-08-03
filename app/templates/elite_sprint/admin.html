@@ -9,8 +9,8 @@
         </div>
         <div class="header-actions">
             <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
-            <a class="ghost-btn" href="{{ url_for('elite_sprint.analytics') }}">Analytics</a>
-            <a class="ghost-btn" href="{{ url_for('elite_sprint.export') }}">Export Excel</a>
+            <a class="ghost-btn" href="/elite-sprint/">Analytics</a>
+            <a class="ghost-btn" href="/elite-sprint/">Export Excel</a>
         </div>
     </header>
 
@@ -47,13 +47,13 @@
                             <span class="status-pill">Timer Stopped</span>
                         {% else %}
                             <span class="status-pill">{{ latest_session.status|title }}</span>
-                            <form method="post" action="{{ url_for('elite_sprint.run_verification') }}" data-confirm="Run sprint verification now? This stops the completion timer and is irreversible.">
+                            <form method="post" action="/elite-sprint/" data-confirm="Run sprint verification now? This stops the completion timer and is irreversible.">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="session_id" value="{{ latest_session.id }}">
                                 <button class="primary-btn" type="submit">Run Sprint Verification</button>
                             </form>
                         {% endif %}
-                        <a class="ghost-btn" href="{{ url_for('elite_sprint.verification_results', session_id=latest_session.id) }}">View Verification Results</a>
+                        <a class="ghost-btn" href="/elite-sprint/">View Verification Results</a>
                     </div>
                 {% endif %}
             </div>
@@ -122,7 +122,7 @@
                     <p class="eyebrow">Sprint Board</p>
                     <h2>Elite Sprint Leaderboard</h2>
                 </div>
-                <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">Open Board</a>
+                <a class="ghost-btn" href="/elite-sprint/">Open Board</a>
             </div>
             {% include "elite_sprint/_leaderboard.html" %}
         </article>
