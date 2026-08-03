@@ -37,11 +37,11 @@
                     <p class="eyebrow">Today's Sprint</p>
                     <h2>{{ today_sprint.sprint_date.strftime("%d %b %Y") }}</h2>
                 </div>
-                <span class="status-pill">{{ "Active" if today_sprint.start_time <= now_time and now_time < today_sprint.end_time else "Scheduled" }}</span>
+                <span class="status-pill">{{ "Active" if sprint_start_time <= now_time and now_time < sprint_end_time else "Scheduled" }}</span>
             </div>
             <div class="sprint-status">
-                <p><strong>Start:</strong> {{ today_sprint.start_time.strftime("%H:%M") }}</p>
-                <p><strong>End:</strong> {{ today_sprint.end_time.strftime("%H:%M") }}</p>
+                <p><strong>Start:</strong> {{ sprint_start_time.strftime("%H:%M") }}</p>
+                <p><strong>End:</strong> {{ sprint_end_time.strftime("%H:%M") }}</p>
                 <p><strong>Locked Students:</strong> {{ sprint_stats.locked_students }}</p>
                 <p><strong>Verified Students:</strong> {{ sprint_stats.verified_students }}</p>
             </div>
