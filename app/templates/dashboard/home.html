@@ -19,7 +19,7 @@
                 <a href="{{ url_for('students.index') }}">Students</a>
                 <a href="{{ url_for('tasks.index') }}">Tasks</a>
                 <a href="{{ url_for('submissions.pending') }}">Approvals</a>
-                <a href="{{ url_for('elite_sprint.admin') }}">Elite Sprint Bidding</a>
+                <a href="{{ url_for('elite_sprint.admin_dashboard') }}">Elite Sprint Bidding</a>
                 <a href="{{ url_for('support.admin_inbox') }}">Support</a>
                 <a href="{{ url_for('exports.excel') }}">Reports</a>
             {% else %}
@@ -45,7 +45,7 @@
                 {% if current_user.role == "admin" %}
                     <a class="ghost-btn" href="{{ url_for('students.index') }}">Students</a>
                     <a class="ghost-btn" href="{{ url_for('submissions.pending') }}">Approvals</a>
-                    <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Sprint</a>
+                    <a class="ghost-btn" href="{{ url_for('elite_sprint.admin_dashboard') }}">Sprint</a>
                     <a class="ghost-btn" href="{{ url_for('penalties.create') }}">Penalty</a>
                     <a class="ghost-btn" href="{{ url_for('exports.excel') }}">Export</a>
                     <form method="post" action="{{ url_for('exports.daily_report') }}" style="display:inline">
@@ -90,19 +90,19 @@
                 <strong>⚡ Elite Sprint Bidding is OPEN now!</strong>
                 <span>Active sprint session. Use the Sprint Verification Bot after the deadline.</span>
                 <b data-countdown data-reload-on-expire="true" data-end-time="{{ active_sprint.end_time.isoformat() }}">--:--:--</b>
-                <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Manage Sprint</a>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.admin_dashboard') }}">Manage Sprint</a>
             </section>
         {% elif current_user.role == "admin" and latest_sprint and not latest_sprint.is_verified %}
             <section class="sprint-alert sprint-pending">
                 <strong>⏳ Sprint Verification Pending</strong>
                 <span>The latest sprint on {{ latest_sprint.sprint_date.strftime("%d %b %Y") }} ended and is awaiting verification.</span>
-                <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">Verify Now</a>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.admin_dashboard') }}">Verify Now</a>
             </section>
         {% elif current_user.role == "admin" and latest_sprint and latest_sprint.is_verified %}
             <section class="sprint-alert sprint-verified">
                 <strong>✅ Latest Sprint Verified</strong>
                 <span>The sprint on {{ latest_sprint.sprint_date.strftime("%d %b %Y") }} has been verified. Golden Stars and penalties are applied.</span>
-                <a class="ghost-btn" href="{{ url_for('elite_sprint.admin') }}">View Results</a>
+                <a class="ghost-btn" href="{{ url_for('elite_sprint.admin_dashboard') }}">View Results</a>
             </section>
         {% endif %}
 
