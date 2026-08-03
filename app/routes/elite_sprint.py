@@ -1,7 +1,11 @@
 import os
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from flask import Blueprint
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_required, current_user
+from flask_wtf import FlaskForm
+from wtforms import SelectField, DateField, DateTimeField, SubmitField
+from wtforms.validators import DataRequired
 
 elite_sprint_bp = Blueprint(
     "elite_sprint",
@@ -369,3 +373,213 @@ def check_and_run_automatic_verification():
         except Exception:
             db.session.rollback()
     return len(sessions)
+
+
+class SprintSessionForm(FlaskForm):
+    sprint_type = SelectField(
+        "Sprint Type",
+        choices=[("overall", "Overall"), ("daily", "Daily"), ("weekly", "Weekly"), ("monthly", "Monthly")],
+        validators=[DataRequired()],
+    )
+    sprint_date = DateField("Sprint Date", validators=[DataRequired()])
+    start_time = DateTimeField("Start Time", validators=[DataRequired()])
+    end_time = DateTimeField("End Time", validators=[DataRequired()])
+    submit = SubmitField("Open Sprint")
+
+
+@elite_sprint_bp.route("/")
+@login_required
+def index():
+    latest = latest_session()
+    active = get_active_session()
+    if current_user.role == "admin":
+        form = SprintSessionForm()
+        metrics = sprint_metrics(latest) if latest else {
+            "participants": 0,
+            "daily": 0,
+            "weekly": 0,
+            "monthly": 0,
+            "highest_bidder": "No bids yet",
+            "participation": 0,
+        }
+        return render_template(
+            "elite_sprint/admin.html",
+            form=form,
+            timezone_label=APP_TIMEZONE,
+            active_session=active,
+            latest_session=latest,
+            metrics=metrics,
+        )
+    elif current_user.role == "student":
+        bid = None
+        verification_result = None
+        visible_sections = {"daily", "weekly", "monthly"}
+        completion_end_local = None
+        if latest:
+            bid = (
+                EliteSprintBid.query.filter_by(session_id=latest.id, student_id=current_user.id)
+                .order_by(EliteSprintBid.submitted_at.desc())
+                .first()
+            )
+            verification_result = SprintVerificationResult.query.filter_by(
+                session_id=latest.id, student_id=current_user.id
+            ).first()
+            if latest.completion_ends_at:
+                completion_end_local = utc_datetime_to_local(latest.completion_ends_at)
+        return render_template(
+            "elite_sprint/student.html",
+            latest_session=latest,
+            active_session=active,
+            bid=bid,
+            verification_result=verification_result,
+            visible_sections=visible_sections,
+            completion_end_local=completion_end_local,
+        )
+    board = sprint_leaderboard(latest.id if latest else None, limit=10)
+    return render_template("elite_sprint/leaderboard.html", leaderboard=board)
+
+
+@elite_sprint_bp.route("/", methods=["POST"])
+@login_required
+def handle_form():
+    if current_user.role == "admin":
+        session_id = request.form.get("session_id")
+        if session_id:
+            try:
+                result = run_sprint_verification(int(session_id), mode="manual")
+                flash(f"Verification complete: {result['results_created']} result(s) created.", "success")
+            except Exception as e:
+                flash(f"Verification failed: {e}", "error")
+            return redirect(url_for("elite_sprint.index"))
+        form = SprintSessionForm()
+        if form.validate_on_submit():
+            sprint_date = form.sprint_date.data
+            start_time = local_datetime_to_utc(form.start_time.data)
+            end_time = local_datetime_to_utc(form.end_time.data)
+            session = EliteSprintSession(
+                sprint_date=sprint_date,
+                sprint_type=form.sprint_type.data,
+                start_time=start_time,
+                end_time=end_time,
+                bidding_starts_at=start_time,
+                bidding_ends_at=end_time,
+                created_by=current_user.id,
+            )
+            db.session.add(session)
+            db.session.commit()
+            flash("Sprint session opened successfully.", "success")
+            return redirect(url_for("elite_sprint.index"))
+        metrics = sprint_metrics(latest_session()) if latest_session() else {
+            "participants": 0,
+            "daily": 0,
+            "weekly": 0,
+            "monthly": 0,
+            "highest_bidder": "No bids yet",
+            "participation": 0,
+        }
+        return render_template(
+            "elite_sprint/admin.html",
+            form=form,
+            timezone_label=APP_TIMEZONE,
+            active_session=get_active_session(),
+            latest_session=latest_session(),
+            metrics=metrics,
+        )
+    elif current_user.role == "student":
+        latest = latest_session()
+        if not latest:
+            flash("No active sprint session.", "error")
+            return redirect(url_for("elite_sprint.index"))
+        daily_count = request.form.get("daily_count", 0, type=int)
+        weekly_count = request.form.get("weekly_count", 0, type=int)
+        monthly_count = request.form.get("monthly_count", 0, type=int)
+        daily_tasks = [t.strip().upper() for t in request.form.getlist("daily_tasks") if t.strip()]
+        weekly_tasks = [t.strip().upper() for t in request.form.getlist("weekly_tasks") if t.strip()]
+        monthly_tasks = [t.strip().upper() for t in request.form.getlist("monthly_tasks") if t.strip()]
+        existing_bid = EliteSprintBid.query.filter_by(session_id=latest.id, student_id=current_user.id).first()
+        task_ids = daily_tasks + weekly_tasks + monthly_tasks
+        if existing_bid:
+            existing_bid.daily_count = daily_count
+            existing_bid.weekly_count = weekly_count
+            existing_bid.monthly_count = monthly_count
+            existing_bid.daily_tasks = daily_tasks
+            existing_bid.weekly_tasks = weekly_tasks
+            existing_bid.monthly_tasks = monthly_tasks
+            existing_bid.task_ids = task_ids
+        else:
+            bid = EliteSprintBid(
+                session_id=latest.id,
+                student_id=current_user.id,
+                daily_count=daily_count,
+                weekly_count=weekly_count,
+                monthly_count=monthly_count,
+                daily_tasks=daily_tasks,
+                weekly_tasks=weekly_tasks,
+                monthly_tasks=monthly_tasks,
+                task_ids=task_ids,
+            )
+            db.session.add(bid)
+        db.session.commit()
+        flash("Sprint bid saved successfully.", "success")
+        return redirect(url_for("elite_sprint.index"))
+    return redirect(url_for("elite_sprint.index"))
+
+
+@elite_sprint_bp.route("/analytics")
+@login_required
+def analytics():
+    latest = latest_session()
+    if not latest:
+        metrics = {
+            "participants": 0,
+            "average_tasks": 0,
+            "highest_daily": 0,
+            "highest_weekly": 0,
+            "highest_monthly": 0,
+            "trend_labels": [],
+            "trend_values": [],
+        }
+        return render_template("elite_sprint/analytics.html", metrics=metrics)
+    total_bids = EliteSprintBid.query.filter_by(session_id=latest.id).count()
+    students = User.query.filter_by(role="student").count()
+    participants = total_bids
+    avg_tasks = 0
+    highest_daily = 0
+    highest_weekly = 0
+    highest_monthly = 0
+    if total_bids > 0:
+        rows = EliteSprintBid.query.filter_by(session_id=latest.id).all()
+        all_daily = [b.daily_count or 0 for b in rows]
+        all_weekly = [b.weekly_count or 0 for b in rows]
+        all_monthly = [b.monthly_count or 0 for b in rows]
+        avg_tasks = round((sum(all_daily) + sum(all_weekly) + sum(all_monthly)) / total_bids, 2)
+        highest_daily = max(all_daily) if all_daily else 0
+        highest_weekly = max(all_weekly) if all_weekly else 0
+        highest_monthly = max(all_monthly) if all_monthly else 0
+    metrics = {
+        "participants": participants,
+        "average_tasks": avg_tasks,
+        "highest_daily": highest_daily,
+        "highest_weekly": highest_weekly,
+        "highest_monthly": highest_monthly,
+        "trend_labels": [],
+        "trend_values": [],
+    }
+    return render_template("elite_sprint/analytics.html", metrics=metrics)
+
+
+@elite_sprint_bp.route("/verification_results/<int:session_id>")
+@login_required
+def verification_results(session_id):
+    session = EliteSprintSession.query.get_or_404(session_id)
+    results = (
+        SprintVerificationResult.query.filter_by(session_id=session_id)
+        .order_by(SprintVerificationResult.student_id.asc())
+        .all()
+    )
+    return render_template(
+        "elite_sprint/verification_results.html",
+        session=session,
+        results=results,
+        timezone_label=APP_TIMEZONE,
+    )
