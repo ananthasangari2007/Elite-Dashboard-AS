@@ -65,12 +65,12 @@
                             <b class="countdown-value">--:--:--</b>
                         </div>
                     {% elif latest_session.completion_ends_at %}
-                        <div class="countdown-timer" data-countdown data-end-time="{{ completion_end_local.isoformat() if completion_end_local else '' }}">
+                        <div class="countdown-timer" data-countdown data-end-time="{{ latest_session.completion_ends_at.isoformat() if latest_session.completion_ends_at else '' }}">
                             <span class="countdown-label">Completion window ends</span>
                             <b class="countdown-value">--:--:--</b>
                         </div>
                     {% elif active_session %}
-                        <div class="countdown-timer" data-countdown data-reload-on-expire="true" data-end-time="{{ bidding_end_local.isoformat() if bidding_end_local else '' }}">
+                        <div class="countdown-timer" data-countdown data-reload-on-expire="true" data-end-time="{{ (latest_session.bidding_ends_at or latest_session.end_time).isoformat() if latest_session else '' }}">
                             <span class="countdown-label">Bidding closes in</span>
                             <b class="countdown-value">--:--:--</b>
                         </div>

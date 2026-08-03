@@ -46,7 +46,7 @@
             <section class="sprint-alert sprint-closed">
                 <strong>🔒 Sprint Locked</strong>
                 <span>Your sprint plan is locked. Submit your planned tasks within the completion window.</span>
-                <b data-countdown data-reload-on-expire="true" data-end-time="{{ completion_end_local.isoformat() if completion_end_local else '' }}">--:--:--</b>
+                <b data-countdown data-reload-on-expire="true" data-end-time="{{ latest_session.completion_ends_at.isoformat() if latest_session and latest_session.completion_ends_at else '' }}">--:--:--</b>
             </section>
         {% endif %}
     {% else %}

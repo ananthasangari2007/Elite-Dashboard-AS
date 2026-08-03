@@ -85,6 +85,17 @@ def ensure_active_session():
     sprint_date = now.date()
     bidding_start = now
     bidding_end = now + timedelta(days=7)
+    creator_id = None
+    try:
+        admin = User.query.filter_by(role="admin").first()
+        if admin:
+            creator_id = admin.id
+        else:
+            any_user = User.query.first()
+            if any_user:
+                creator_id = any_user.id
+    except Exception:
+        pass
     session = EliteSprintSession(
         sprint_date=sprint_date,
         sprint_type="overall",
@@ -93,7 +104,7 @@ def ensure_active_session():
         bidding_starts_at=bidding_start,
         bidding_ends_at=bidding_end,
         status="active",
-        created_by=0,
+        created_by=creator_id,
     )
     db.session.add(session)
     db.session.commit()
@@ -445,6 +456,18 @@ def index():
                 "highest_bidder": "No bids yet",
                 "participation": 0,
             }
+        try:
+            board = sprint_leaderboard(latest.id if latest else None, limit=10)
+        except Exception:
+            board = []
+        latest_start_local = utc_datetime_to_local(latest.start_time) if latest else None
+        latest_end_local = utc_datetime_to_local(latest.end_time) if latest else None
+        bidding_end_local = utc_datetime_to_local(latest.bidding_end) if latest else None
+        completion_end_local = (
+            utc_datetime_to_local(latest.completion_ends_at)
+            if latest and latest.completion_ends_at
+            else None
+        )
         return render_template(
             "elite_sprint/admin.html",
             form=form,
@@ -452,6 +475,11 @@ def index():
             active_session=active,
             latest_session=latest,
             metrics=metrics,
+            leaderboard=board,
+            latest_start_local=latest_start_local,
+            latest_end_local=latest_end_local,
+            bidding_end_local=bidding_end_local,
+            completion_end_local=completion_end_local,
         )
     elif current_user.role == "student":
         bid = None
@@ -476,6 +504,10 @@ def index():
                     completion_end_local = utc_datetime_to_local(latest.completion_ends_at)
                 except Exception:
                     completion_end_local = None
+        try:
+            board = sprint_leaderboard(latest.id if latest else None, limit=10)
+        except Exception:
+            board = []
         return render_template(
             "elite_sprint/student.html",
             latest_session=latest,
@@ -484,6 +516,7 @@ def index():
             verification_result=verification_result,
             visible_sections=visible_sections,
             completion_end_local=completion_end_local,
+            leaderboard=board,
         )
     try:
         board = sprint_leaderboard(latest.id if latest else None, limit=10)

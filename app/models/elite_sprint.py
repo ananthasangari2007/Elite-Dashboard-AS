@@ -20,7 +20,7 @@ class EliteSprintSession(db.Model):
     verified = db.Column(db.Boolean, default=False, nullable=False, index=True)
     verified_at = db.Column(db.DateTime, nullable=True)
     verification_mode = db.Column(db.String(20), nullable=True)
-    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     creator = db.relationship("User", foreign_keys=[created_by], backref="created_sprint_sessions")
