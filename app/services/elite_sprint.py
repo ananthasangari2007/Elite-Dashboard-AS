@@ -95,12 +95,15 @@ def get_sprint_for_date(sprint_date):
     return EliteSprintSession.query.filter_by(sprint_date=sprint_date).first()
 
 
-def create_sprint(sprint_date, start_time, end_time):
-    existing = EliteSprintSession.query.filter_by(sprint_date=sprint_date).first()
+def create_sprint(sprint_date, start_time, end_time, sprint_mode="overall"):
+    existing = EliteSprintSession.query.filter_by(
+        sprint_date=sprint_date, sprint_mode=sprint_mode
+    ).first()
     if existing:
-        return None, "A sprint already exists for this date."
+        return None, f"A sprint already exists for this date with mode '{sprint_mode}'."
     session = EliteSprintSession(
         sprint_date=sprint_date,
+        sprint_mode=sprint_mode,
         start_time=start_time,
         end_time=end_time,
     )
@@ -218,6 +221,17 @@ def _verify_single_bid(bid):
         db.session.rollback()
 
 
+def run_sprint_verification(session_id):
+    locked_bids = EliteSprintBid.query.filter_by(
+        session_id=session_id, is_locked=True, is_verified=False
+    ).all()
+    count = 0
+    for bid in locked_bids:
+        _verify_single_bid(bid)
+        count += 1
+    return count
+
+
 def get_student_sprint_status(student_id):
     bids = EliteSprintBid.query.filter_by(student_id=student_id).order_by(EliteSprintBid.submitted_at.desc()).all()
     for bid in bids:
@@ -248,8 +262,8 @@ def get_sprint_metrics(session):
     }
 
 
-def get_sprint_leaderboard():
-    rows = (
+def get_sprint_leaderboard(session_id=None):
+    query = (
         db.session.query(
             User.id.label("student_id"),
             User.name.label("student_name"),
@@ -261,12 +275,45 @@ def get_sprint_leaderboard():
             db.func.coalesce(
                 db.func.sum(db.case((EliteSprintBid.penalty_points > 0, 1), else_=0)), 0
             ).label("penalty_flags"),
+            db.func.coalesce(
+                db.func.sum(
+                    db.case(
+                        ((EliteSprintBidTask.category == "daily"), 1),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("daily_tasks"),
+            db.func.coalesce(
+                db.func.sum(
+                    db.case(
+                        ((EliteSprintBidTask.category == "weekly"), 1),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("weekly_tasks"),
+            db.func.coalesce(
+                db.func.sum(
+                    db.case(
+                        ((EliteSprintBidTask.category == "monthly"), 1),
+                        else_=0,
+                    )
+                ),
+                0,
+            ).label("monthly_tasks"),
         )
         .select_from(EliteSprintBid)
         .join(User, User.id == EliteSprintBid.student_id)
         .outerjoin(EliteSprintBidTask, EliteSprintBidTask.bid_id == EliteSprintBid.id)
         .filter(EliteSprintBid.is_locked.is_(True))
-        .group_by(User.id, User.name, User.department)
+    )
+
+    if session_id is not None:
+        query = query.filter(EliteSprintBid.session_id == session_id)
+
+    rows = (
+        query.group_by(User.id, User.name, User.department)
         .order_by(db.desc("golden_stars"), db.desc("total_tasks"), User.name.asc())
         .all()
     )
@@ -274,6 +321,9 @@ def get_sprint_leaderboard():
     ranked = []
     for index, row in enumerate(rows, start=1):
         total_tasks = int(row.total_tasks or 0)
+        daily_tasks = int(row.daily_tasks or 0)
+        weekly_tasks = int(row.weekly_tasks or 0)
+        monthly_tasks = int(row.monthly_tasks or 0)
         golden_stars = int(row.golden_stars or 0)
         penalty_flags = int(row.penalty_flags or 0)
         badge = "🌱 Beginner"
@@ -287,6 +337,9 @@ def get_sprint_leaderboard():
                 "student_name": row.student_name,
                 "department": row.department or "N/A",
                 "total_tasks": total_tasks,
+                "daily_tasks": daily_tasks,
+                "weekly_tasks": weekly_tasks,
+                "monthly_tasks": monthly_tasks,
                 "golden_star": golden_stars > 0,
                 "penalty": penalty_flags > 0,
                 "golden_stars": golden_stars,

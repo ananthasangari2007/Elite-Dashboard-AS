@@ -6,6 +6,7 @@
                 <strong>{{ row.student_name }}</strong>
                 <small>{{ row.department }}</small>
                 <b>{{ row.total_tasks }} tasks</b>
+                <small>D: {{ row.daily_tasks }} | W: {{ row.weekly_tasks }} | M: {{ row.monthly_tasks }}</small>
                 {% if row.golden_star %}
                     <span class="badge badge-gold">⭐ Golden Star</span>
                 {% endif %}
@@ -29,6 +30,9 @@
                     <strong>{{ row.student_name }}</strong>
                     <small>{{ row.department }} - {{ row.badge }}</small>
                 </div>
+                <small>D: {{ row.daily_tasks }}</small>
+                <small>W: {{ row.weekly_tasks }}</small>
+                <small>M: {{ row.monthly_tasks }}</small>
                 <b>{{ row.total_tasks }}</b>
                 {% if row.golden_star %}
                     <span class="badge badge-gold">⭐ Golden Star</span>

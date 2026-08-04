@@ -16,6 +16,7 @@ def _to_time(value):
 class EliteSprintSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sprint_date = db.Column(db.Date, nullable=False, unique=True, index=True)
+    sprint_mode = db.Column(db.String(20), nullable=False, default="overall")
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -31,7 +32,7 @@ class EliteSprintSession(db.Model):
         return datetime.combine(self.sprint_date, _to_time(self.end_time))
 
     @property
-    def is_active(self):
+    def is_open(self):
         now = datetime.utcnow()
         return self.start_datetime <= now < self.end_datetime
 

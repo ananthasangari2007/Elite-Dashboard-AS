@@ -10,6 +10,8 @@
         </div>
         <div class="header-actions">
             <a class="ghost-btn" href="{{ url_for('dashboard.home') }}">Dashboard</a>
+            <a class="ghost-btn" href="{{ url_for('elite_sprint.leaderboard') }}">Leaderboard</a>
+            <a class="ghost-btn" href="{{ url_for('elite_sprint.verify') }}">Verification Results</a>
         </div>
     </header>
 
@@ -24,9 +26,10 @@
             <form class="auth-form" method="post">
                 {{ form.hidden_tag() }}
                 <label>{{ form.sprint_date.label }} {{ form.sprint_date() }}</label>
+                <label>{{ form.sprint_mode.label }} {{ form.sprint_mode() }}</label>
                 <label>{{ form.start_time.label }} {{ form.start_time() }}</label>
                 <label>{{ form.end_time.label }} {{ form.end_time() }}</label>
-                <small class="muted-text">Only one sprint is allowed per date. After midnight, the old sprint expires and a new one can be created for the next day.</small>
+                <small class="muted-text">Only one sprint is allowed per date and mode. After midnight, the old sprint expires and a new one can be created for the next day.</small>
                 <button class="primary-btn" type="submit">Create Sprint</button>
             </form>
         </article>
@@ -39,24 +42,93 @@
                     <h2>{{ today_sprint.sprint_date.strftime("%d %b %Y") }}</h2>
                 </div>
                 <span class="status-pill">
-                    {% set now_dt = current_time %}
-                    {% if today_sprint and today_sprint.start_time and today_sprint.end_time %}
-                        {% if today_sprint.start_datetime <= now_dt and now_dt < today_sprint.end_datetime %}
-                            <span class="status-pill active">Active</span>
-                        {% else %}
-                            <span class="status-pill scheduled">Scheduled</span>
-                        {% endif %}
-                    {% else %}
-                        <span class="status-pill closed">Closed</span>
-                    {% endif %}
+                    {{ "Active" if today_sprint.is_open else "Scheduled" }}
                 </span>
             </div>
             <div class="sprint-status">
-                <p><strong>Start:</strong> {{ safe_time(today_sprint.start_time) }}</p>
-                <p><strong>End:</strong> {{ safe_time(today_sprint.end_time) }}</p>
-                <p><strong>Locked Students:</strong> {{ sprint_stats.locked_students }}</p>
-                <p><strong>Verified Students:</strong> {{ sprint_stats.verified_students }}</p>
+                <p><strong>Mode:</strong> {{ today_sprint.sprint_mode }}</p>
+                <p><strong>Start:</strong>
+                    {{ today_sprint.start_time.strftime("%H:%M") if today_sprint.start_time else "-" }}
+                </p>
+                <p><strong>End:</strong>
+                    {{ today_sprint.end_time.strftime("%H:%M") if today_sprint.end_time else "-" }}
+                </p>
             </div>
+            <form method="post" action="{{ url_for('elite_sprint.run_verification_bot') }}" style="margin-top: 1rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="session_id" value="{{ today_sprint.id }}">
+                <button class="primary-btn" type="submit">Run Sprint Verification</button>
+            </form>
+        </article>
+
+        <article class="work-panel">
+            <div class="section-title">
+                <div>
+                    <p class="eyebrow">Monitoring</p>
+                    <h2>Student Status</h2>
+                </div>
+            </div>
+            <p>Submitted: {{ submitted_students|length }} | Pending: {{ pending_students|length }} | Total Students: {{ total_students }}</p>
+            <div class="data-table" style="margin-top: 1rem;">
+                <div class="table-head">Students Submitted</div>
+                {% for s in submitted_students %}
+                    <div class="leader-row">
+                        <div><strong>{{ s.name }}</strong><small>{{ s.email }}</small></div>
+                        <span>{{ s.total_tasks }} tasks</span>
+                        <small>{{ s.submission_time.strftime("%H:%M") if s.submission_time else "" }}</small>
+                    </div>
+                {% else %}
+                    <div class="empty-state" style="padding: 1rem;"><span>No submissions yet.</span></div>
+                {% endfor %}
+            </div>
+            <div class="data-table" style="margin-top: 1rem;">
+                <div class="table-head">Students Not Submitted</div>
+                {% for s in pending_students %}
+                    <div class="leader-row">
+                        <div><strong>{{ s.name }}</strong><small>{{ s.email }}</small></div>
+                        <span>{{ s.total_tasks }} tasks</span>
+                    </div>
+                {% else %}
+                    <div class="empty-state" style="padding: 1rem;"><span>No pending submissions.</span></div>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="work-panel">
+            <div class="section-title">
+                <div>
+                    <p class="eyebrow">Sprint Leaderboard</p>
+                    <h2>Current Rankings</h2>
+                </div>
+            </div>
+            {% if sprint_leaderboard %}
+                <div class="leaderboard sprint-board">
+                    {% for row in sprint_leaderboard %}
+                        <div class="leader-row">
+                            <span>{{ row.rank }}</span>
+                            <div>
+                                <strong>{{ row.student_name }}</strong>
+                                <small>{{ row.department }} - {{ row.badge }}</small>
+                            </div>
+                            <small>D: {{ row.daily_tasks }}</small>
+                            <small>W: {{ row.weekly_tasks }}</small>
+                            <small>M: {{ row.monthly_tasks }}</small>
+                            <b>{{ row.total_tasks }}</b>
+                            {% if row.golden_star %}
+                                <span class="badge badge-gold">⭐ Golden Star</span>
+                            {% endif %}
+                            {% if row.penalty %}
+                                <span class="badge badge-red">🔴 Penalty Applied</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <strong>No Sprint Bids Yet</strong>
+                    <span>The Elite Sprint Leaderboard appears as soon as students submit bids.</span>
+                </div>
+            {% endif %}
         </article>
         {% else %}
         <article class="work-panel">

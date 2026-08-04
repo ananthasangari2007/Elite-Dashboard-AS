@@ -5,7 +5,8 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
-from wtforms import DateField, SubmitField, TimeField
+from sqlalchemy import func
+from wtforms import DateField, SelectField, SubmitField, TimeField
 from wtforms.validators import DataRequired, ValidationError
 
 from app import db
@@ -21,9 +22,10 @@ from app.services.elite_sprint import (
     VERIFICATION_WINDOW_HOURS,
     create_sprint,
     get_sprint_for_date,
-    get_today_sprint,
     get_sprint_leaderboard,
+    get_today_sprint,
     process_expired_sprint_verifications,
+    run_sprint_verification,
 )
 
 elite_sprint_bp = Blueprint(
@@ -50,13 +52,26 @@ def validate_sprint_date(form, field):
     sprint_date = field.data
     if sprint_date < utc_now().date():
         raise ValidationError("Cannot create a sprint for a past date.")
-    existing = get_sprint_for_date(sprint_date)
+    sprint_mode = getattr(form, "sprint_mode", None)
+    mode = sprint_mode.data if sprint_mode and sprint_mode.data else "overall"
+    existing = EliteSprintSession.query.filter_by(
+        sprint_date=sprint_date, sprint_mode=mode
+    ).first()
     if existing:
-        raise ValidationError("A sprint already exists for this date.")
+        raise ValidationError(f"A sprint already exists for this date with mode '{mode}'.")
+
+
+SPRINT_MODE_CHOICES = [
+    ("overall", "Overall (All Sections)"),
+    ("daily", "Daily Only"),
+    ("weekly", "Weekly Only"),
+    ("monthly", "Monthly Only"),
+]
 
 
 class SprintCreateForm(FlaskForm):
     sprint_date = DateField("Sprint Date", validators=[DataRequired(), validate_sprint_date])
+    sprint_mode = SelectField("Sprint Mode", choices=SPRINT_MODE_CHOICES, default="overall", validators=[DataRequired()])
     start_time = TimeField("Start Time", validators=[DataRequired()])
     end_time = TimeField("End Time", validators=[DataRequired()])
     submit = SubmitField("Create Sprint")
@@ -80,19 +95,52 @@ def admin():
     today = utc_now().date()
     today_sprint = get_sprint_for_date(today)
     form = SprintCreateForm()
-    sprint_stats = {"locked_students": 0, "verified_students": 0}
+
+    sprint_leaderboard = []
+    submitted_students = []
+    pending_students = []
+    total_students = User.query.filter_by(role="student").count()
+
     if today_sprint:
-        locked = EliteSprintBid.query.filter_by(session_id=today_sprint.id, is_locked=True).count()
-        verified = EliteSprintBid.query.filter_by(session_id=today_sprint.id, is_verified=True).count()
-        sprint_stats = {"locked_students": locked, "verified_students": verified}
+        try:
+            sprint_leaderboard = get_sprint_leaderboard(today_sprint.id)
+
+            all_students = User.query.filter_by(role="student").all()
+            submitted_students = []
+            pending_students = []
+
+            bid_map = {
+                bid.student_id: bid
+                for bid in EliteSprintBid.query.filter_by(session_id=today_sprint.id).all()
+            }
+
+            for student in all_students:
+                bid = bid_map.get(student.id)
+                if bid and bid.is_locked:
+                    total_tasks = sum(1 for _ in bid.tasks)
+                    submitted_students.append({
+                        "name": student.name,
+                        "email": student.email,
+                        "submission_time": bid.locked_at,
+                        "total_tasks": total_tasks,
+                    })
+                else:
+                    pending_students.append({
+                        "name": student.name,
+                        "email": student.email,
+                    })
+        except Exception:
+            db.session.rollback()
 
     return render_template(
         "elite_sprint/admin.html",
         form=form,
         today_sprint=today_sprint,
-        current_time=datetime.utcnow(),
-        sprint_stats=sprint_stats,
+        sprint_leaderboard=sprint_leaderboard,
+        submitted_students=submitted_students,
+        pending_students=pending_students,
         timezone_label=APP_TIMEZONE,
+        total_students=total_students,
     )
 
 
@@ -107,6 +155,7 @@ def admin_create_sprint():
     form = SprintCreateForm()
     if form.validate_on_submit():
         sprint_date = form.sprint_date.data
+        sprint_mode = form.sprint_mode.data
         start_time = form.start_time.data
         end_time = form.end_time.data
 
@@ -122,16 +171,18 @@ def admin_create_sprint():
                 "elite_sprint/admin.html",
                 form=form,
                 today_sprint=today_sprint,
-                current_time=datetime.utcnow(),
-                sprint_stats={"locked_students": 0, "verified_students": 0},
+                sprint_leaderboard=[],
+                submitted_students=[],
+                pending_students=[],
                 timezone_label=APP_TIMEZONE,
+                total_students=User.query.filter_by(role="student").count(),
             )
 
-        session, error = create_sprint(sprint_date, start_time, end_time)
+        session, error = create_sprint(sprint_date, start_time, end_time, sprint_mode)
         if error:
             flash(error, "error")
         else:
-            flash(f"Sprint created for {sprint_date.strftime('%d %b %Y')}.", "success")
+            flash(f"Sprint created for {sprint_date.strftime('%d %b %Y')} ({sprint_mode}).", "success")
         return redirect(url_for("elite_sprint.admin"))
 
     flash("Please fix the errors below.", "error")
@@ -141,9 +192,11 @@ def admin_create_sprint():
         "elite_sprint/admin.html",
         form=form,
         today_sprint=today_sprint,
-        current_time=datetime.utcnow(),
-        sprint_stats={"locked_students": 0, "verified_students": 0},
+        sprint_leaderboard=[],
+        submitted_students=[],
+        pending_students=[],
         timezone_label=APP_TIMEZONE,
+        total_students=User.query.filter_by(role="student").count(),
     )
 
 
@@ -161,7 +214,7 @@ def student():
             "elite_sprint/student.html",
             sprint_open=False,
             message="Sprint bidding is currently closed.",
-            current_time=datetime.utcnow(),
+            sprint_mode=None,
         )
 
     bid = EliteSprintBid.query.filter_by(
@@ -175,8 +228,8 @@ def student():
             sprint_open=False,
             bid=bid,
             today_sprint=today_sprint,
+            sprint_mode=today_sprint.sprint_mode,
             message="Sprint locked until the next sprint session.",
-            current_time=datetime.utcnow(),
         )
 
     return render_template(
@@ -184,7 +237,7 @@ def student():
         sprint_open=True,
         today_sprint=today_sprint,
         bid=bid,
-        current_time=datetime.utcnow(),
+        sprint_mode=today_sprint.sprint_mode,
     )
 
 
@@ -210,6 +263,8 @@ def student_submit():
         flash("Sprint locked until the next sprint session.", "error")
         return redirect(url_for("elite_sprint.student"))
 
+    sprint_mode = today_sprint.sprint_mode or "overall"
+
     daily_task_ids_raw = request.form.getlist("daily_tasks")
     weekly_task_ids_raw = request.form.getlist("weekly_tasks")
     monthly_task_ids_raw = request.form.getlist("monthly_tasks")
@@ -218,17 +273,29 @@ def student_submit():
     weekly_task_ids = [t.strip() for t in weekly_task_ids_raw if t.strip()]
     monthly_task_ids = [t.strip() for t in monthly_task_ids_raw if t.strip()]
 
-    all_task_ids = daily_task_ids + weekly_task_ids + monthly_task_ids
+    visible_sections = []
+    if sprint_mode == "overall":
+        visible_sections = ["daily", "weekly", "monthly"]
+    elif sprint_mode == "daily":
+        visible_sections = ["daily"]
+    elif sprint_mode == "weekly":
+        visible_sections = ["weekly"]
+    elif sprint_mode == "monthly":
+        visible_sections = ["monthly"]
 
-    if len(daily_task_ids) < 2:
-        flash("Daily category requires at least 2 task IDs.", "error")
-        return redirect(url_for("elite_sprint.student"))
-    if len(weekly_task_ids) < 2:
-        flash("Weekly category requires at least 2 task IDs.", "error")
-        return redirect(url_for("elite_sprint.student"))
-    if len(monthly_task_ids) < 2:
-        flash("Monthly category requires at least 2 task IDs.", "error")
-        return redirect(url_for("elite_sprint.student"))
+    section_map = {
+        "daily": daily_task_ids,
+        "weekly": weekly_task_ids,
+        "monthly": monthly_task_ids,
+    }
+
+    for section in visible_sections:
+        task_ids = section_map[section]
+        if len(task_ids) < 2:
+            flash(f"{section.capitalize()} category requires at least 2 task IDs.", "error")
+            return redirect(url_for("elite_sprint.student"))
+
+    all_task_ids = daily_task_ids + weekly_task_ids + monthly_task_ids
 
     if not all_task_ids:
         flash("At least one task ID is required.", "error")
@@ -263,6 +330,7 @@ def student_submit():
             db.session.add(bid_task)
         existing_bid.is_locked = True
         existing_bid.locked_at = datetime.utcnow()
+        existing_bid.submitted_at = datetime.utcnow()
         existing_bid.verification_due_at = existing_bid.locked_at + timedelta(hours=VERIFICATION_WINDOW_HOURS)
     else:
         now = datetime.utcnow()
@@ -271,6 +339,7 @@ def student_submit():
             student_id=current_user.id,
             is_locked=True,
             locked_at=now,
+            submitted_at=now,
             verification_due_at=now + timedelta(hours=VERIFICATION_WINDOW_HOURS),
         )
         db.session.add(bid)
@@ -332,3 +401,34 @@ def verify():
         results=results,
         timezone_label=APP_TIMEZONE,
     )
+
+
+@elite_sprint_bp.route("/admin/verify-bot", methods=["POST"])
+@login_required
+def run_verification_bot():
+    process_expired_sprint_verifications()
+    if current_user.role != "admin":
+        flash("Access denied.", "error")
+        return redirect(url_for("dashboard.home"))
+
+    session_id = request.form.get("session_id", type=int)
+    if session_id:
+        session_obj = EliteSprintSession.query.get_or_404(session_id)
+    else:
+        session_obj = (
+            EliteSprintSession.query.order_by(EliteSprintSession.sprint_date.desc())
+            .first()
+        )
+
+    if not session_obj:
+        flash("No sprint session found.", "error")
+        return redirect(url_for("elite_sprint.admin"))
+
+    try:
+        count = run_sprint_verification(session_obj.id)
+        flash(f"Verification completed for {count} locked bid(s).", "success")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Verification failed: {exc}", "error")
+
+    return redirect(url_for("elite_sprint.admin"))
