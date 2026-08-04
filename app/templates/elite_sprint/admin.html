@@ -23,8 +23,8 @@
                     <h2>Schedule a new sprint</h2>
                 </div>
             </div>
-            <form class="auth-form" method="post">
-                {{ form.hidden_tag() }}
+            <form class="auth-form" method="post" action="{{ url_for('elite_sprint.create') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label>{{ form.sprint_date.label }} {{ form.sprint_date() }}</label>
                 <label>{{ form.sprint_mode.label }} {{ form.sprint_mode() }}</label>
                 <label>{{ form.start_time.label }} {{ form.start_time() }}</label>
@@ -48,10 +48,10 @@
             <div class="sprint-status">
                 <p><strong>Mode:</strong> {{ today_sprint.sprint_mode }}</p>
                 <p><strong>Start:</strong>
-                    {{ today_sprint.start_time.strftime("%H:%M") if today_sprint.start_time else "-" }}
+                    {{ sprint_start_time.strftime("%H:%M") if sprint_start_time else "--:--" }}
                 </p>
                 <p><strong>End:</strong>
-                    {{ today_sprint.end_time.strftime("%H:%M") if today_sprint.end_time else "-" }}
+                    {{ sprint_end_time.strftime("%H:%M") if sprint_end_time else "--:--" }}
                 </p>
             </div>
             <form method="post" action="{{ url_for('elite_sprint.run_verification_bot') }}" style="margin-top: 1rem;">

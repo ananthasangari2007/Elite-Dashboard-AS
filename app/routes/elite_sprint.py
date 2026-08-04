@@ -23,6 +23,7 @@ from app.services.elite_sprint import (
     create_sprint,
     get_sprint_for_date,
     get_sprint_leaderboard,
+    get_local_now,
     get_today_sprint,
     process_expired_sprint_verifications,
     run_sprint_verification,
@@ -136,6 +137,9 @@ def admin():
         "elite_sprint/admin.html",
         form=form,
         today_sprint=today_sprint,
+        sprint_start_time=today_sprint.start_time if today_sprint else None,
+        sprint_end_time=today_sprint.end_time if today_sprint else None,
+        now_time=get_local_now().time(),
         sprint_leaderboard=sprint_leaderboard,
         submitted_students=submitted_students,
         pending_students=pending_students,
@@ -162,17 +166,76 @@ def admin_create_sprint():
             flash("End time must be after start time.", "error")
             return redirect(url_for("elite_sprint.admin"))
 
-        session, error = create_sprint(
-            sprint_date, start_time, end_time, sprint_mode, created_by=current_user.id
+        existing = EliteSprintSession.query.filter_by(
+            sprint_date=sprint_date,
+            is_active=True
+        ).first()
+
+        if existing:
+            flash("An active sprint already exists for this date.", "warning")
+            return redirect(url_for("elite_sprint.admin"))
+
+        session = EliteSprintSession(
+            sprint_date=sprint_date,
+            start_time=start_time,
+            end_time=end_time,
+            sprint_mode=sprint_mode,
+            is_active=True
         )
-        if error:
-            flash(error, "error")
-        else:
-            flash(f"Sprint created for {sprint_date.strftime('%d %b %Y')} ({sprint_mode}).", "success")
+        db.session.add(session)
+        db.session.commit()
+
+        flash(f"Sprint created for {sprint_date.strftime('%d %b %Y')} ({sprint_mode}).", "success")
         return redirect(url_for("elite_sprint.admin"))
     except Exception:
         db.session.rollback()
-        current_app.logger.exception("Sprint creation failed")
+        current_app.logger.exception("SPRINT CREATE FAILED")
+        flash("Unable to create sprint. Check server logs.", "danger")
+        return redirect(url_for("elite_sprint.admin"))
+
+
+@elite_sprint_bp.route("/admin/create", methods=["POST"])
+@login_required
+def create():
+    process_expired_sprint_verifications()
+    if current_user.role != "admin":
+        flash("Access denied.", "error")
+        return redirect(url_for("dashboard.home"))
+
+    try:
+        sprint_date = datetime.strptime(request.form["sprint_date"], "%Y-%m-%d").date()
+        sprint_mode = request.form.get("sprint_mode", "overall")
+        start_time = datetime.strptime(request.form["start_time"], "%H:%M").time()
+        end_time = datetime.strptime(request.form["end_time"], "%H:%M").time()
+
+        if end_time <= start_time:
+            flash("End time must be after start time.", "error")
+            return redirect(url_for("elite_sprint.admin"))
+
+        existing = EliteSprintSession.query.filter_by(
+            sprint_date=sprint_date,
+            is_active=True
+        ).first()
+
+        if existing:
+            flash("An active sprint already exists for this date.", "warning")
+            return redirect(url_for("elite_sprint.admin"))
+
+        session = EliteSprintSession(
+            sprint_date=sprint_date,
+            start_time=start_time,
+            end_time=end_time,
+            sprint_mode=sprint_mode,
+            is_active=True
+        )
+        db.session.add(session)
+        db.session.commit()
+
+        flash(f"Sprint created for {sprint_date.strftime('%d %b %Y')} ({sprint_mode}).", "success")
+        return redirect(url_for("elite_sprint.admin"))
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("SPRINT CREATE FAILED")
         flash("Unable to create sprint. Check server logs.", "danger")
         return redirect(url_for("elite_sprint.admin"))
 
