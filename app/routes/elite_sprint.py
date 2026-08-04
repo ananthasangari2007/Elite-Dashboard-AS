@@ -2,7 +2,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for, current_app
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
 from sqlalchemy import func
@@ -152,52 +152,29 @@ def admin_create_sprint():
         flash("Access denied.", "error")
         return redirect(url_for("dashboard.home"))
 
-    form = SprintCreateForm()
-    if form.validate_on_submit():
-        sprint_date = form.sprint_date.data
-        sprint_mode = form.sprint_mode.data
-        start_time = form.start_time.data
-        end_time = form.end_time.data
-
-        if isinstance(start_time, datetime):
-            start_time = start_time.time()
-        if isinstance(end_time, datetime):
-            end_time = end_time.time()
+    try:
+        sprint_date = datetime.strptime(request.form["sprint_date"], "%Y-%m-%d").date()
+        sprint_mode = request.form.get("sprint_mode", "overall")
+        start_time = datetime.strptime(request.form["start_time"], "%H:%M").time()
+        end_time = datetime.strptime(request.form["end_time"], "%H:%M").time()
 
         if end_time <= start_time:
             flash("End time must be after start time.", "error")
-            today_sprint = get_sprint_for_date(sprint_date)
-            return render_template(
-                "elite_sprint/admin.html",
-                form=form,
-                today_sprint=today_sprint,
-                sprint_leaderboard=[],
-                submitted_students=[],
-                pending_students=[],
-                timezone_label=APP_TIMEZONE,
-                total_students=User.query.filter_by(role="student").count(),
-            )
+            return redirect(url_for("elite_sprint.admin"))
 
-        session, error = create_sprint(sprint_date, start_time, end_time, sprint_mode)
+        session, error = create_sprint(
+            sprint_date, start_time, end_time, sprint_mode, created_by=current_user.id
+        )
         if error:
             flash(error, "error")
         else:
             flash(f"Sprint created for {sprint_date.strftime('%d %b %Y')} ({sprint_mode}).", "success")
         return redirect(url_for("elite_sprint.admin"))
-
-    flash("Please fix the errors below.", "error")
-    today = utc_now().date()
-    today_sprint = get_sprint_for_date(today)
-    return render_template(
-        "elite_sprint/admin.html",
-        form=form,
-        today_sprint=today_sprint,
-        sprint_leaderboard=[],
-        submitted_students=[],
-        pending_students=[],
-        timezone_label=APP_TIMEZONE,
-        total_students=User.query.filter_by(role="student").count(),
-    )
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Sprint creation failed")
+        flash("Unable to create sprint. Check server logs.", "danger")
+        return redirect(url_for("elite_sprint.admin"))
 
 
 @elite_sprint_bp.route("/student")

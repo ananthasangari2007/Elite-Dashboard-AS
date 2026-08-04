@@ -42,6 +42,9 @@ def create_app(config_class=Config):
                 'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS golden_stars INTEGER DEFAULT 0',
                 'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS penalty_flags INTEGER DEFAULT 0',
                 "ALTER TABLE elite_sprint_session ADD COLUMN IF NOT EXISTS sprint_mode VARCHAR(20) DEFAULT 'overall'",
+                "ALTER TABLE elite_sprint_session ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'scheduled'",
+                "ALTER TABLE elite_sprint_session ADD COLUMN IF NOT EXISTS created_by INTEGER",
+                "ALTER TABLE elite_sprint_session ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
             ]
 
             for sql in repairs:

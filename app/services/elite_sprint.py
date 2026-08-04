@@ -58,6 +58,43 @@ def normalize_time(value):
     return None
 
 
+def get_local_now():
+    try:
+        tz = ZoneInfo(APP_TIMEZONE)
+    except ZoneInfoNotFoundError:
+        tz = ZoneInfo("UTC")
+    return datetime.now(tz)
+
+
+def combine_local(sprint_date, time_value):
+    tz = ZoneInfo(APP_TIMEZONE)
+    dt = datetime.combine(sprint_date, _to_time(time_value))
+    return dt.replace(tzinfo=tz)
+
+
+def get_active_sprint():
+    now = get_local_now()
+
+    sessions = (
+        EliteSprintSession.query
+        .filter_by(is_active=True)
+        .order_by(EliteSprintSession.id.desc())
+        .all()
+    )
+
+    for session in sessions:
+        start_dt = combine_local(session.sprint_date, session.start_time)
+        end_dt = combine_local(session.sprint_date, session.end_time)
+
+        if end_dt <= start_dt:
+            end_dt += timedelta(days=1)
+
+        if start_dt <= now < end_dt:
+            return session
+
+    return None
+
+
 def get_today_sprint():
     today = date.today()
     session = (
@@ -95,7 +132,7 @@ def get_sprint_for_date(sprint_date):
     return EliteSprintSession.query.filter_by(sprint_date=sprint_date).first()
 
 
-def create_sprint(sprint_date, start_time, end_time, sprint_mode="overall"):
+def create_sprint(sprint_date, start_time, end_time, sprint_mode="overall", created_by=None):
     existing = EliteSprintSession.query.filter_by(
         sprint_date=sprint_date, sprint_mode=sprint_mode
     ).first()
@@ -106,6 +143,9 @@ def create_sprint(sprint_date, start_time, end_time, sprint_mode="overall"):
         sprint_mode=sprint_mode,
         start_time=start_time,
         end_time=end_time,
+        status="scheduled",
+        created_by=created_by,
+        is_active=True,
     )
     db.session.add(session)
     db.session.commit()
